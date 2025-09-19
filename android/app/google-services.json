@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "546590111912",
+    "project_id": "costgobookkeeping",
+    "storage_bucket": "costgobookkeeping.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:546590111912:android:c894211546b5d6e453ea9d",
+        "android_client_info": {
+          "package_name": "com.example.bookkeeping_fresh_start"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4uSUkX2RsGRUmBwmlIpo7BF9HgiW5wtU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

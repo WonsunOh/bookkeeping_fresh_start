@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="bookkeeping_fresh_start">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Jangbu</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+  <!-- ==================== Firebase SDK 추가 시작 ==================== -->
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+
+  <!-- TODO: Add SDKs for Firebase products that you want to use
+       https://firebase.google.com/docs/web/setup#available-libraries -->
+
+  <script>
+    // Your web app's Firebase configuration
+    // 1단계에서 확인한 사용자님의 프로젝트 정보로 아래 값을 모두 교체해주세요!
+    var firebaseConfig = {
+    apiKey: "AIzaSyAKZYaPK98gHuArygPUsDXwmzEyAF0Mqe4",
+    authDomain: "costgobookkeeping.firebaseapp.com",
+    projectId: "costgobookkeeping",
+    storageBucket: "costgobookkeeping.firebasestorage.app",
+    messagingSenderId: "546590111912",
+    appId: "1:546590111912:web:5d14203dd1d7044b53ea9d",
+    measurementId: "G-V1XJNG48C2"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+  <!-- ==================== Firebase SDK 추가 끝 ====================== -->
+
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
