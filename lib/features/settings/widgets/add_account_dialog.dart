@@ -23,7 +23,7 @@ class AddEditAccountDialog extends ConsumerStatefulWidget {
 class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
   final _formKey = GlobalKey<FormState>();
   String _name = '';
-  AccountType _type = AccountType.expense; // 기본값
+  AccountType _type = AccountType.asset; // 기본값을 '자산'으로 변경
   late bool _isEditMode;
 
   @override
@@ -73,51 +73,40 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_isEditMode ? '계정과목 수정' : '새 계정과목 추가'),
-      // AlertDialog의 content는 스크롤이 안되므로 SingleChildScrollView로 감싸줍니다.
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min, // content 크기에 맞게 높이 조절
-            children: [
-              TextFormField(
-                initialValue: _name, // 수정 시 기존 이름 표시
-                decoration: const InputDecoration(labelText: '이름'),
-                validator: (value) => (value == null || value.isEmpty) ? '이름을 입력하세요.' : null,
-                onSaved: (value) => _name = value!,
-                autofocus: true, // 다이얼로그가 열리면 바로 입력 시작
-              ),
-              const SizedBox(height: 24),
-            const Text('유형', style: TextStyle(fontWeight: FontWeight.bold)),
-            const Divider(),
-            // --- DropdownButtonFormField를 아래 RadioListTile들로 교체 ---
-            // Column을 사용하여 라디오 버튼들을 세로로 배치합니다.
-            // AlertDialog는 스크롤이 안되므로, 내용이 길어질 경우를 대비해
-            // Flexible과 SingleChildScrollView를 함께 사용합니다.
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: AccountType.values.map((type) {
-                    return RadioListTile<AccountType>(
-                      title: Text(_getAccountTypeLabel(type)),
-                      value: type,
-                      groupValue: _type,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _type = value;
-                          });
-                        }
-                      },
-                      contentPadding: EdgeInsets.zero,
-                    );
-                  }).toList(),
-                ),
-              ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // content 크기에 맞게 높이 조절
+          children: [
+            TextFormField(
+              initialValue: _name, // 수정 시 기존 이름 표시
+              decoration: const InputDecoration(labelText: '이름'),
+              validator: (value) =>
+                  (value == null || value.isEmpty) ? '이름을 입력하세요.' : null,
+              onSaved: (value) => _name = value!,
+              autofocus: true, // 다이얼로그가 열리면 바로 입력 시작
             ),
-            ],
-          ),
+            const SizedBox(height: 16),
+            // --- 👇 라디오 버튼을 DropdownButtonFormField로 교체 ---
+            DropdownButtonFormField<AccountType>(
+              value: _type,
+              decoration: const InputDecoration(labelText: '유형'),
+              items: AccountType.values.map((type) {
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(_getAccountTypeLabel(type)),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _type = value;
+                  });
+                }
+              },
+            ),
+            // ----------------------------------------------------
+          ],
         ),
       ),
       actions: [
@@ -132,7 +121,9 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                   title: const Text('삭제 확인'),
                   content: Text('\'$_name\' 계정과목을 정말 삭제하시겠습니까?'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('취소')),
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('취소')),
                     TextButton(
                       onPressed: _delete,
                       child: const Text('삭제', style: TextStyle(color: Colors.red)),
@@ -143,7 +134,10 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
             },
             child: const Text('삭제', style: TextStyle(color: Colors.red)),
           ),
-        const Spacer(), // 버튼들을 양쪽 끝으로 밀어냄
+        // --- 👇 오류를 발생시키던 Spacer() 제거 ---
+        // AlertDialog의 actions는 기본적으로 오른쪽 정렬되므로 Spacer가 필요 없습니다.
+        // 버튼들을 오른쪽으로 밀기 위해 Row와 MainAxisAlignment.end를 사용하거나
+        // 이처럼 Spacer 없이 배치하면 됩니다.
         TextButton(
           onPressed: () => context.pop(),
           child: const Text('취소'),
@@ -158,11 +152,16 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
 
   String _getAccountTypeLabel(AccountType type) {
     switch (type) {
-      case AccountType.asset: return '자산';
-      case AccountType.liability: return '부채';
-      case AccountType.equity: return '자본';
-      case AccountType.revenue: return '수익';
-      case AccountType.expense: return '비용';
+      case AccountType.asset:
+        return '자산';
+      case AccountType.liability:
+        return '부채';
+      case AccountType.equity:
+        return '자본';
+      case AccountType.revenue:
+        return '수익';
+      case AccountType.expense:
+        return '비용';
     }
   }
 }
