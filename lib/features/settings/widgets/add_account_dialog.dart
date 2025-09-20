@@ -29,7 +29,6 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
   @override
   void initState() {
     super.initState();
-    // accountToEdit 객체가 있으면 수정 모드, 없으면 추가 모드
     _isEditMode = widget.accountToEdit != null;
     if (_isEditMode) {
       _name = widget.accountToEdit!.name;
@@ -43,7 +42,6 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
       final repository = ref.read(accountRepositoryProvider);
 
       if (_isEditMode) {
-        // 수정 로직: 기존 ID를 사용하여 업데이트
         final updatedAccount = Account(
           id: widget.accountToEdit!.id,
           name: _name,
@@ -51,7 +49,6 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
         );
         repository.updateAccount(updatedAccount);
       } else {
-        // 추가 로직: 새 ID를 생성하여 추가
         final newAccount = Account(
           id: const Uuid().v4(),
           name: _name,
@@ -59,62 +56,63 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
         );
         repository.addAccount(newAccount);
       }
-      context.pop(); // 다이얼로그 닫기
+      context.pop();
     }
   }
 
   void _delete() {
     final repository = ref.read(accountRepositoryProvider);
     repository.deleteAccount(widget.accountToEdit!.id);
-    context.pop(); // 다이얼로그 닫기
+    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_isEditMode ? '계정과목 수정' : '새 계정과목 추가'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // content 크기에 맞게 높이 조절
-          children: [
-            TextFormField(
-              initialValue: _name, // 수정 시 기존 이름 표시
-              decoration: const InputDecoration(labelText: '이름'),
-              validator: (value) =>
-                  (value == null || value.isEmpty) ? '이름을 입력하세요.' : null,
-              onSaved: (value) => _name = value!,
-              autofocus: true, // 다이얼로그가 열리면 바로 입력 시작
-            ),
-            const SizedBox(height: 16),
-            // --- 👇 라디오 버튼을 DropdownButtonFormField로 교체 ---
-            DropdownButtonFormField<AccountType>(
-              value: _type,
-              decoration: const InputDecoration(labelText: '유형'),
-              items: AccountType.values.map((type) {
-                return DropdownMenuItem(
-                  value: type,
-                  child: Text(_getAccountTypeLabel(type)),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _type = value;
-                  });
-                }
-              },
-            ),
-            // ----------------------------------------------------
-          ],
+      // --- 👇 SingleChildScrollView로 감싸서 오버플로우 에러 해결 ---
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                initialValue: _name,
+                decoration: const InputDecoration(labelText: '이름'),
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? '이름을 입력하세요.' : null,
+                onSaved: (value) => _name = value!,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<AccountType>(
+                value: _type,
+                decoration: const InputDecoration(labelText: '유형'),
+                isExpanded: false,
+                items: AccountType.values.map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Text(_getAccountTypeLabel(type)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _type = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
+      // --------------------------------------------------------
       actions: [
-        // 수정 모드일 때만 '삭제' 버튼 표시
         if (_isEditMode)
           TextButton(
             onPressed: () {
-              // 삭제 확인 다이얼로그를 한 번 더 보여줌
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
@@ -134,10 +132,6 @@ class _AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
             },
             child: const Text('삭제', style: TextStyle(color: Colors.red)),
           ),
-        // --- 👇 오류를 발생시키던 Spacer() 제거 ---
-        // AlertDialog의 actions는 기본적으로 오른쪽 정렬되므로 Spacer가 필요 없습니다.
-        // 버튼들을 오른쪽으로 밀기 위해 Row와 MainAxisAlignment.end를 사용하거나
-        // 이처럼 Spacer 없이 배치하면 됩니다.
         TextButton(
           onPressed: () => context.pop(),
           child: const Text('취소'),

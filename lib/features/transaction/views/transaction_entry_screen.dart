@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/enums.dart';
 import '../../../core/formatters/currency_input_formatter.dart';
+import '../../../core/widgets/responsive_layout.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/journal_entry.dart';
 import '../../../data/models/transaction.dart';
@@ -120,151 +121,153 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
         ? entryState.toAccount
         : null;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(_isEditMode ? '거래 수정' : '거래 기록')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SegmentedButton<EntryScreenType>(
-              segments: const [
-                ButtonSegment(value: EntryScreenType.expense, label: Text('지출')),
-                ButtonSegment(value: EntryScreenType.income, label: Text('수입')),
-                ButtonSegment(value: EntryScreenType.transfer, label: Text('이체')),
-              ],
-              selected: {entryState.entryType},
-              onSelectionChanged: (newSelection) {
-                entryViewModel.setEntryType(newSelection.first);
-              },
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('날짜'),
-              trailing: TextButton(
-                child: Text('${entryState.date.year}-${entryState.date.month}-${entryState.date.day}'),
-                onPressed: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: entryState.date,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2101),
-                  );
-                  if (pickedDate != null) {
-                    entryViewModel.setDate(pickedDate);
+    return ResponsiveLayout(
+      child: Scaffold(
+        appBar: AppBar(title: Text(_isEditMode ? '거래 수정' : '거래 기록')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<EntryScreenType>(
+                segments: const [
+                  ButtonSegment(value: EntryScreenType.expense, label: Text('지출')),
+                  ButtonSegment(value: EntryScreenType.income, label: Text('수입')),
+                  ButtonSegment(value: EntryScreenType.transfer, label: Text('이체')),
+                ],
+                selected: {entryState.entryType},
+                onSelectionChanged: (newSelection) {
+                  entryViewModel.setEntryType(newSelection.first);
+                },
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: const Text('날짜'),
+                trailing: TextButton(
+                  child: Text('${entryState.date.year}-${entryState.date.month}-${entryState.date.day}'),
+                  onPressed: () async {
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: entryState.date,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (pickedDate != null) {
+                      entryViewModel.setDate(pickedDate);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<Account>(
+                value: validFromAccount,
+                decoration: InputDecoration(labelText: fromAccountLabel, border: const OutlineInputBorder()),
+                items: fromAccounts.map((account) {
+                  return DropdownMenuItem(value: account, child: Text(account.name));
+                }).toList(),
+                onChanged: (account) {
+                  if (account != null) {
+                    entryViewModel.setFromAccount(account);
                   }
                 },
               ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<Account>(
-              value: validFromAccount,
-              decoration: InputDecoration(labelText: fromAccountLabel, border: const OutlineInputBorder()),
-              items: fromAccounts.map((account) {
-                return DropdownMenuItem(value: account, child: Text(account.name));
-              }).toList(),
-              onChanged: (account) {
-                if (account != null) {
-                  entryViewModel.setFromAccount(account);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<Account>(
-              value: validToAccount,
-              decoration: InputDecoration(labelText: toAccountLabel, border: const OutlineInputBorder()),
-              items: toAccounts.map((account) {
-                return DropdownMenuItem(value: account, child: Text(account.name));
-              }).toList(),
-              onChanged: (account) {
-                if (account != null) {
-                  entryViewModel.setToAccount(account);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _amountController,
-              decoration: const InputDecoration(
-                  labelText: '얼마나', border: OutlineInputBorder()),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                CurrencyInputFormatter(),
-              ],
-              onChanged: (value) {
-                final amount = double.tryParse(value.replaceAll(',', '')) ?? 0.0;
-                entryViewModel.setAmount(amount);
-              },
-              textAlign: TextAlign.end,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _memoController,
-              decoration: const InputDecoration(
-                  labelText: '메모', border: OutlineInputBorder()),
-              onChanged: (value) {
-                entryViewModel.setDescription(value);
-              },
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<Account>(
+                value: validToAccount,
+                decoration: InputDecoration(labelText: toAccountLabel, border: const OutlineInputBorder()),
+                items: toAccounts.map((account) {
+                  return DropdownMenuItem(value: account, child: Text(account.name));
+                }).toList(),
+                onChanged: (account) {
+                  if (account != null) {
+                    entryViewModel.setToAccount(account);
+                  }
+                },
               ),
-              onPressed: () {
-                if (entryState.fromAccount == null ||
-                    entryState.toAccount == null ||
-                    entryState.amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('모든 항목을 올바르게 입력해주세요.')),
-                  );
-                  return;
-                }
-                if (entryState.fromAccount!.id == entryState.toAccount!.id) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('같은 계좌 간 거래는 할 수 없습니다.')),
-                  );
-                  return;
-                }
-
-                final List<JournalEntry> entries;
-                if (entryState.entryType == EntryScreenType.income) {
-                  entries = [
-                    JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
-                    JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
-                  ];
-                } else {
-                  entries = [
-                    JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
-                    JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
-                  ];
-                }
-                
-                if (_isEditMode) {
-                  final updatedTransaction = Transaction(
-                    id: widget.transaction!.id,
-                    date: entryState.date,
-                    description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
-                    entries: entries,
-                  );
-                  ref.read(transactionProvider.notifier).updateTransaction(updatedTransaction);
-                } else {
-                  final newTransaction = Transaction(
-                    id: const Uuid().v4(),
-                    date: entryState.date,
-                    description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
-                    entries: entries,
-                  );
-                  ref.read(transactionProvider.notifier).addTransaction(newTransaction);
-                }
-                context.go('/');
-              },
-              child: const Text('저장하기'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountController,
+                decoration: const InputDecoration(
+                    labelText: '얼마나', border: OutlineInputBorder()),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  CurrencyInputFormatter(),
+                ],
+                onChanged: (value) {
+                  final amount = double.tryParse(value.replaceAll(',', '')) ?? 0.0;
+                  entryViewModel.setAmount(amount);
+                },
+                textAlign: TextAlign.end,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _memoController,
+                decoration: const InputDecoration(
+                    labelText: '메모', border: OutlineInputBorder()),
+                onChanged: (value) {
+                  entryViewModel.setDescription(value);
+                },
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: () {
+                  if (entryState.fromAccount == null ||
+                      entryState.toAccount == null ||
+                      entryState.amount <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('모든 항목을 올바르게 입력해주세요.')),
+                    );
+                    return;
+                  }
+                  if (entryState.fromAccount!.id == entryState.toAccount!.id) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('같은 계좌 간 거래는 할 수 없습니다.')),
+                    );
+                    return;
+                  }
+      
+                  final List<JournalEntry> entries;
+                  if (entryState.entryType == EntryScreenType.income) {
+                    entries = [
+                      JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
+                      JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
+                    ];
+                  } else {
+                    entries = [
+                      JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
+                      JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
+                    ];
+                  }
+                  
+                  if (_isEditMode) {
+                    final updatedTransaction = Transaction(
+                      id: widget.transaction!.id,
+                      date: entryState.date,
+                      description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
+                      entries: entries,
+                    );
+                    ref.read(transactionProvider.notifier).updateTransaction(updatedTransaction);
+                  } else {
+                    final newTransaction = Transaction(
+                      id: const Uuid().v4(),
+                      date: entryState.date,
+                      description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
+                      entries: entries,
+                    );
+                    ref.read(transactionProvider.notifier).addTransaction(newTransaction);
+                  }
+                  context.go('/');
+                },
+                child: const Text('저장하기'),
+              ),
+            ],
+          ),
         ),
       ),
     );
