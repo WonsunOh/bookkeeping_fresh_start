@@ -1,29 +1,6 @@
 {
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "costgobookkeeping",
-          "appId": "1:546590111912:android:c894211546b5d6e453ea9d",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "costgobookkeeping",
-          "configurations": {
-            "android": "1:546590111912:android:c894211546b5d6e453ea9d",
-            "ios": "1:546590111912:ios:d01867c75ee422b153ea9d",
-            "macos": "1:546590111912:ios:d01867c75ee422b153ea9d",
-            "web": "1:546590111912:web:ffc4b0b466d1e21853ea9d",
-            "windows": "1:546590111912:web:a5583a699de7335753ea9d"
-          }
-        }
-      }
-    }
-  },
   "hosting": {
-    "public": "bookkeeping_fresh_start",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",

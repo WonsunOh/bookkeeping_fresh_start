@@ -9,6 +9,7 @@ import '../features/repeating_transactions/views/add_edit_repeating_transaction_
 import '../features/repeating_transactions/views/repeating_transaction_list_screen.dart';
 import '../features/settings/views/account_management_screen.dart';
 import '../features/transaction/views/home_screen.dart';
+import '../features/transaction/views/transaction_detail_screen.dart';
 import '../features/transaction/views/transaction_entry_screen.dart';
 import '../features/transaction/views/transaction_list_screen.dart';
 // ... 다른 import들
@@ -26,6 +27,16 @@ final router = GoRouter(
       name: 'transactions',
       builder: (context, state) => const TransactionListScreen(),
     ),
+    GoRoute(
+        path: '/transaction/:id', // 👈 경로 매개변수 ':id' 사용
+        name: 'transactionId',
+        builder: (context, state) {
+          // 경로에서 'id' 값을 추출합니다.
+          final transactionId = state.pathParameters['id']!;
+          // 추출한 id를 TransactionDetailScreen에 전달합니다.
+          return TransactionDetailScreen(transactionId: transactionId);
+        },
+      ),
     GoRoute(
       path: '/entry',
       name: 'entry',
