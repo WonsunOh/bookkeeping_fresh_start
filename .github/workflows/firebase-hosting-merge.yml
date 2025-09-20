@@ -11,7 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: flutter build web
+      # --- 추가할 부분 시작 ---
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # Flutter 안정화 버전 사용
+
+      - name: Install dependencies
+        run: flutter pub get
+      # --- 추가할 부분 끝 ---
+      - run: flutter build web --release
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
