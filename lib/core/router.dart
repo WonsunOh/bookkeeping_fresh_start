@@ -1,6 +1,8 @@
 // lib/core/router.dart
 
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../data/models/account.dart';
 import '../data/models/repeating_transaction.dart';
 import '../data/models/transaction.dart';
 import '../features/budget/views/budget_screen.dart';
@@ -8,6 +10,7 @@ import '../features/financial_statements/views/financial_statement_screen.dart';
 import '../features/repeating_transactions/views/add_edit_repeating_transaction_screen.dart';
 import '../features/repeating_transactions/views/repeating_transaction_list_screen.dart';
 import '../features/settings/views/account_management_screen.dart';
+import '../features/settings/widgets/add_account_dialog.dart';
 import '../features/transaction/views/home_screen.dart';
 import '../features/transaction/views/transaction_detail_screen.dart';
 import '../features/transaction/views/transaction_entry_screen.dart';
@@ -59,6 +62,22 @@ final router = GoRouter(
       path: '/accounts',
       name: 'accounts',
       builder: (context, state) => const AccountManagementScreen(),
+    ),
+
+    // 계정과목 추가/수정을 위한 단일 경로
+    GoRoute(
+      path: '/accounts/entry',
+      name: 'accountEntry',
+      pageBuilder: (context, state) {
+        // context.push의 extra 파라미터로 전달된 Account 객체를 받습니다.
+        // 추가 모드일 때는 null이므로 nullable(?)로 처리합니다.
+        final account = state.extra as Account?;
+        return MaterialPage(
+          fullscreenDialog: true,
+          // AddEditAccountDialog에 account 객체를 전달합니다.
+          child: AddEditAccountDialog(accountToEdit: account),
+        );
+      },
     ),
    
     GoRoute(

@@ -61,8 +61,7 @@ class AccountManagementScreen extends ConsumerWidget {
                       title: Text(account.name),
                       trailing: const Icon(Icons.edit),
                       onTap: () {
-                        // 계정 수정 화면으로 이동 (id 전달)
-                        context.go('/accounts/edit/${account.id}');
+                        context.push('/accounts/entry', extra: account);
                       },
                     );
                   }).toList(),
