@@ -1,7 +1,5 @@
 // lib/features/repeating_transactions/views/add_edit_repeating_transaction_screen.dart
 
-// ignore_for_file: unused_field
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,14 +12,13 @@ import '../../../core/formatters/currency_input_formatter.dart';
 import '../../../core/widgets/responsive_layout.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/repeating_transaction.dart';
-import '../../../data/models/transaction.dart'; // Transaction 모델 import
+import '../../../data/models/transaction.dart';
 import '../../../data/repositories/repeating_transaction_repository.dart';
 import '../../transaction/viewmodels/account_provider.dart';
 import '../viewmodels/repeating_transaction_entry_viewmodel.dart';
 
 class AddEditRepeatingTransactionScreen extends ConsumerStatefulWidget {
   final RepeatingTransaction? rule;
-  // --- 👇 [추가] 기존 거래 정보를 받기 위한 파라미터 ---
   final Transaction? transaction;
 
   const AddEditRepeatingTransactionScreen({super.key, this.rule, this.transaction});
@@ -35,14 +32,11 @@ class _AddEditRepeatingTransactionScreenState
     extends ConsumerState<AddEditRepeatingTransactionScreen> {
   final _amountController = TextEditingController();
   final _memoController = TextEditingController();
-
-  // --- 👇 [추가] 초기화가 한 번만 실행되도록 보장하는 플래그 ---
+  
   bool _isInitialized = false;
-
   bool _isLoading = false;
 
   bool get _isEditMode => widget.rule != null;
-
 
   @override
   void dispose() {
@@ -51,7 +45,6 @@ class _AddEditRepeatingTransactionScreenState
     super.dispose();
   }
 
-  // --- 👇 [수정] _submit 함수 로직 전체 ---
   Future<void> _submit() async {
     final entryState = ref.read(repeatingEntryProvider);
     if (entryState.fromAccount == null ||
@@ -101,27 +94,26 @@ class _AddEditRepeatingTransactionScreenState
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    // --- 👇 [수정] build 메서드에서 계정 목록의 로딩 상태를 직접 관리합니다. ---
     final accountsAsync = ref.watch(accountsStreamProvider);
     final entryViewModel = ref.read(repeatingEntryProvider.notifier);
-
-    // ViewModel의 상태를 watch하여 컨트롤러와 동기화
+    
     final entryState = ref.watch(repeatingEntryProvider);
+    // 컨트롤러와 ViewModel 상태 동기화
     final formattedAmount = NumberFormat.decimalPattern('ko_KR').format(entryState.amount);
     if (_amountController.text != formattedAmount) {
       _amountController.text = formattedAmount;
+      _amountController.selection = TextSelection.fromPosition(TextPosition(offset: _amountController.text.length));
     }
     if (_memoController.text != entryState.description) {
       _memoController.text = entryState.description;
+       _memoController.selection = TextSelection.fromPosition(TextPosition(offset: _memoController.text.length));
     }
 
-    // 계정 목록의 상태(로딩, 에러, 데이터)에 따라 다른 UI를 보여줍니다.
     return accountsAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('로딩 중...')),
+        appBar: AppBar(title: Text(_isEditMode ? '반복 거래 수정' : '반복 거래 추가')),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (err, stack) => Scaffold(
@@ -129,18 +121,20 @@ class _AddEditRepeatingTransactionScreenState
         body: Center(child: Text('계정 정보를 불러오는 데 실패했습니다: $err')),
       ),
       data: (accounts) {
-        // 계정 목록 로딩이 성공하면, 초기화를 딱 한 번만 실행합니다.
+        // --- 👇 여기가 핵심 수정 부분입니다 ---
         if (!_isInitialized) {
-          if (_isEditMode) {
-            entryViewModel.initializeForEdit(widget.rule!, accounts);
-          } else if (widget.transaction != null) {
-            entryViewModel.initializeFromTransaction(widget.transaction!, accounts);
-          }
-          // 초기화가 끝났음을 표시
+          // Future.microtask를 사용하여 build가 끝난 직후에 상태를 변경합니다.
+          Future.microtask(() {
+            if (_isEditMode) {
+              entryViewModel.initializeForEdit(widget.rule!, accounts);
+            } else if (widget.transaction != null) {
+              entryViewModel.initializeFromTransaction(widget.transaction!, accounts);
+            }
+          });
           _isInitialized = true;
         }
+        // ------------------------------------
 
-        // --- (이하 UI 로직은 기존과 거의 동일) ---
         final assetAccounts = accounts.where((a) => a.type == AccountType.asset).toList();
         final expenseAccounts = accounts.where((a) => a.type == AccountType.expense).toList();
         final revenueAccounts = accounts.where((a) => a.type == AccountType.revenue).toList();
@@ -284,13 +278,16 @@ class _AddEditRepeatingTransactionScreenState
                     ),
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('규칙 저장하기'),
                     ),
-                    child: const Text('규칙 저장하기'),
-                  ),
                 ],
               ),
             ),

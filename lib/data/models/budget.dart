@@ -1,6 +1,5 @@
 // lib/data/models/budget.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Budget {
   final String id; // 문서 ID (예: "2024-09_expense_food")

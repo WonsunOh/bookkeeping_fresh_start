@@ -109,59 +109,68 @@ class TransactionDetailScreen extends ConsumerWidget {
             ),
           ],
         ),
-        body: asyncTransaction.when(
-          data: (transaction) {
-            return asyncAccounts.when(
-              data: (allAccounts) {
-                final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
-                final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
-      
-                String getAccountName(String id) {
-                  return allAccounts.firstWhere((acc) => acc.id == id, orElse: () => Account(id: '', name: '알 수 없음', type: AccountType.asset)).name;
-                }
-      
-            return ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.calendar_today),
-                  title: const Text('날짜'),
-                  subtitle: Text('${transaction.date.toLocal()}'.split(' ')[0]),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.description),
-                  title: const Text('내용'),
-                  subtitle: Text(transaction.description),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.money),
-                  title: const Text('금액'),
-                  subtitle: Text('${creditEntry.amount.toInt()}원'),
-                ),
-                const Divider(height: 32),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text('분개 정보', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.arrow_forward, color: Colors.green),
-                  title: const Text('차변 (Debit)'),
-                  subtitle: Text(getAccountName(debitEntry.accountId)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.arrow_back, color: Colors.red),
-                  title: const Text('대변 (Credit)'),
-                  subtitle: Text(getAccountName(creditEntry.accountId)),
-                ),
-              ],
-            );
+        body: RefreshIndicator(
+          // 화면을 아래로 당기면 이 함수가 실행됩니다.
+          onRefresh: () async {
+            // 1. transactionProvider를 먼저 새로고침하고 기다립니다.
+            ref.refresh(transactionProvider);
+            // 2. accountsStreamProvider를 새로고침하고 기다립니다.
+            await ref.refresh(accountsStreamProvider.future);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('계정 목록을 불러오는 데 실패했습니다: $err')),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('거래 정보를 불러오는 데 실패했습니다: $err')),
+          child: asyncTransaction.when(
+            data: (transaction) {
+              return asyncAccounts.when(
+                data: (allAccounts) {
+                  final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
+                  final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
+                
+                  String getAccountName(String id) {
+                    return allAccounts.firstWhere((acc) => acc.id == id, orElse: () => Account(id: '', name: '알 수 없음', type: AccountType.asset)).name;
+                  }
+                
+              return ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.calendar_today),
+                    title: const Text('날짜'),
+                    subtitle: Text('${transaction.date.toLocal()}'.split(' ')[0]),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.description),
+                    title: const Text('내용'),
+                    subtitle: Text(transaction.description),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.money),
+                    title: const Text('금액'),
+                    subtitle: Text('${creditEntry.amount.toInt()}원'),
+                  ),
+                  const Divider(height: 32),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text('분개 정보', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_forward, color: Colors.green),
+                    title: const Text('차변 (Debit)'),
+                    subtitle: Text(getAccountName(debitEntry.accountId)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_back, color: Colors.red),
+                    title: const Text('대변 (Credit)'),
+                    subtitle: Text(getAccountName(creditEntry.accountId)),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(child: Text('계정 목록을 불러오는 데 실패했습니다: $err')),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('거래 정보를 불러오는 데 실패했습니다: $err')),
+          ),
         ),
       ),
     );

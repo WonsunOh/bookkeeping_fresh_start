@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import '../../../core/widgets/responsive_layout.dart';
 import '../../dashboard/viewmodels/account_balance_provider.dart';
 import '../../dashboard/viewmodels/dashboard_viewmodel.dart';
+import '../viewmodels/account_provider.dart';
+import '../viewmodels/transaction_viewmodel.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -43,67 +45,76 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // --- 이번 달 요약 카드 ---
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: asyncSummary.when(
-                  data: (summary) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('이번 달 요약', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 16),
-                      _buildSummaryRow('수입', summary.totalIncome, Colors.blue, currencyFormat),
-                      const SizedBox(height: 8),
-                      _buildSummaryRow('지출', summary.totalExpense, Colors.red, currencyFormat),
-                      const Divider(height: 24),
-                      _buildSummaryRow('합계', summary.netIncome, Colors.black, currencyFormat, isTotal: true),
-                    ],
+        body: RefreshIndicator(
+          // 화면을 아래로 당기면 이 함수가 실행됩니다.
+          onRefresh: () async {
+            // 1. transactionProvider를 먼저 새로고침하고 기다립니다.
+            ref.refresh(transactionProvider);
+            // 2. accountsStreamProvider를 새로고침하고 기다립니다.
+            await ref.refresh(accountsStreamProvider.future);
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              // --- 이번 달 요약 카드 ---
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: asyncSummary.when(
+                    data: (summary) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('이번 달 요약', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 16),
+                        _buildSummaryRow('수입', summary.totalIncome, Colors.blue, currencyFormat),
+                        const SizedBox(height: 8),
+                        _buildSummaryRow('지출', summary.totalExpense, Colors.red, currencyFormat),
+                        const Divider(height: 24),
+                        _buildSummaryRow('합계', summary.netIncome, Colors.black, currencyFormat, isTotal: true),
+                      ],
+                    ),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => const Text('요약 정보를 불러올 수 없습니다.'),
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, st) => const Text('요약 정보를 불러올 수 없습니다.'),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            // --- 자산 현황 카드 ---
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: asyncBalances.when(
-                  data: (balances) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('자산 현황', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 8),
-                      ...balances.map((b) => _buildBalanceRow(b.account.name, b.balance, currencyFormat)),
-                    ],
+              const SizedBox(height: 24),
+              // --- 자산 현황 카드 ---
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: asyncBalances.when(
+                    data: (balances) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('자산 현황', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        ...balances.map((b) => _buildBalanceRow(b.account.name, b.balance, currencyFormat)),
+                      ],
+                    ),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, st) => const Text('자산 정보를 불러올 수 없습니다.'),
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, st) => const Text('자산 정보를 불러올 수 없습니다.'),
                 ),
               ),
-            ),
-             const SizedBox(height: 24),
-             // --- 전체 거래내역 보기 버튼 ---
-             OutlinedButton.icon(
-                icon: const Icon(Icons.list_alt),
-                label: const Text('전체 거래내역 보기'),
-                onPressed: (){
-                  // 이전의 검색/필터 기능이 있는 화면으로 이동
-                  context.push('/transactions');
-                },
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-             )
-          ],
+               const SizedBox(height: 24),
+               // --- 전체 거래내역 보기 버튼 ---
+               OutlinedButton.icon(
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('전체 거래내역 보기'),
+                  onPressed: (){
+                    // 이전의 검색/필터 기능이 있는 화면으로 이동
+                    context.push('/transactions');
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+               )
+            ],
+          ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () => context.push('/entry'),

@@ -1,65 +1,69 @@
 // lib/features/transaction/viewmodels/transaction_viewmodel.dart
 
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
-
+import 'package:flutter_riverpod/legacy.dart'; // legacy.dart는 필요 없을 수 있습니다.
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
-import 'home_viewmodel.dart'; // home_viewmodel.dart는 필터링을 위해 필요합니다.
+import 'home_viewmodel.dart';
 
-// ViewModel: StateNotifier를 상속받아 상태 관리 로직을 구현합니다.
-// StreamSubscription 대신, 필요할 때만 데이터를 불러오는 방식으로 변경합니다.
+// ViewModel: StateNotifier를 사용하여 상태를 관리합니다.
+// Firestore의 Stream을 구독(listen)하여 데이터 변경을 실시간으로 감지합니다.
 class TransactionViewModel extends StateNotifier<AsyncValue<List<Transaction>>> {
-  final Ref _ref;
+  final TransactionRepository _repository;
+  StreamSubscription<List<Transaction>>? _subscription;
 
-  TransactionViewModel(this._ref) : super(const AsyncValue.loading()) {
-    // ViewModel이 생성되자마자 거래 목록을 한 번 불러옵니다.
-    _fetchTransactions();
+  TransactionViewModel(this._repository) : super(const AsyncValue.loading()) {
+    // ViewModel이 생성되자마자 스트림을 구독합니다.
+    _listenToTransactions();
   }
 
-  // 거래 목록을 불러와 상태를 업데이트하는 내부 함수
-  Future<void> _fetchTransactions() async {
-    try {
-      final repository = _ref.read(transactionRepositoryProvider);
-      final transactions = await repository.watchAllTransactions().first;
-      // 데이터 로딩에 성공하면 상태를 AsyncValue.data로 변경
-      if (mounted) {
-        state = AsyncValue.data(transactions);
-      }
-    } catch (e, st) {
-      if (mounted) {
-        state = AsyncValue.error(e, st);
-      }
-    }
+  // Firestore의 거래 데이터 스트림을 구독하고 상태를 업데이트하는 메서드
+  void _listenToTransactions() {
+    _subscription?.cancel();
+    _subscription = _repository.watchAllTransactions().listen(
+      (transactions) {
+        // 스트림에서 새로운 데이터가 올 때마다 상태를 업데이트합니다.
+        if (mounted) {
+          state = AsyncValue.data(transactions);
+        }
+      },
+      onError: (e, s) {
+        if (mounted) {
+          state = AsyncValue.error(e, s);
+        }
+      },
+    );
   }
 
-  // 거래 추가 로직
+  // 거래 추가 (데이터 추가만 하면 스트림이 자동으로 UI를 업데이트합니다)
   Future<void> addTransaction(Transaction transaction) async {
-    final repository = _ref.read(transactionRepositoryProvider);
-    await repository.addTransaction(transaction);
-    // 데이터 변경이 있었으므로 전체 목록을 다시 불러옵니다. (수동 새로고침)
-    await _fetchTransactions();
+    await _repository.addTransaction(transaction);
   }
 
-  // 거래 수정 로직
+  // 거래 수정
   Future<void> updateTransaction(Transaction transaction) async {
-    final repository = _ref.read(transactionRepositoryProvider);
-    await repository.updateTransaction(transaction);
-    await _fetchTransactions();
+    await _repository.updateTransaction(transaction);
   }
 
-  // 거래 삭제 로직
+  // 거래 삭제
   Future<void> deleteTransaction(String id) async {
-    final repository = _ref.read(transactionRepositoryProvider);
-    await repository.deleteTransaction(id);
-    await _fetchTransactions();
+    await _repository.deleteTransaction(id);
+  }
+
+  // ViewModel이 소멸될 때 스트림 구독을 반드시 취소하여 메모리 누수를 방지합니다.
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }
 
 // Provider: StateNotifierProvider
-// 이 프로바이더의 이름은 기존 코드와 동일하게 'transactionProvider'로 유지합니다.
-final transactionProvider = StateNotifierProvider<TransactionViewModel, AsyncValue<List<Transaction>>>((ref) {
-  return TransactionViewModel(ref);
+final transactionProvider =
+    StateNotifierProvider<TransactionViewModel, AsyncValue<List<Transaction>>>((ref) {
+  final repository = ref.watch(transactionRepositoryProvider);
+  return TransactionViewModel(repository);
 });
 
 

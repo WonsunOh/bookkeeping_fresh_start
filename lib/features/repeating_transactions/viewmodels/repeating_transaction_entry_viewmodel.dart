@@ -39,13 +39,12 @@ class RepeatingEntryState {
     Frequency? frequency,
     DateTime? nextDueDate,
     DateTime? endDate,
-    bool resetToAccount = false,
   }) {
     return RepeatingEntryState(
       description: description ?? this.description,
       amount: amount ?? this.amount,
       fromAccount: fromAccount ?? this.fromAccount,
-      toAccount: resetToAccount ? null : toAccount ?? this.toAccount,
+      toAccount: toAccount ?? this.toAccount,
       entryType: entryType ?? this.entryType,
       frequency: frequency ?? this.frequency,
       nextDueDate: nextDueDate ?? this.nextDueDate,
@@ -54,31 +53,38 @@ class RepeatingEntryState {
   }
 }
 
-// 상태를 관리하는 Notifier
+// ViewModel
 class RepeatingEntryViewModel extends StateNotifier<RepeatingEntryState> {
   RepeatingEntryViewModel() : super(RepeatingEntryState(nextDueDate: DateTime.now()));
 
+  void setDescription(String value) => state = state.copyWith(description: value);
+  void setAmount(double value) => state = state.copyWith(amount: value);
+  void setFromAccount(Account value) => state = state.copyWith(fromAccount: value);
+  void setToAccount(Account value) => state = state.copyWith(toAccount: value);
+  void setEntryType(EntryScreenType value) {
+    state = state.copyWith(
+        entryType: value, fromAccount: null, toAccount: null);
+  }
+  void setFrequency(Frequency value) => state = state.copyWith(frequency: value);
+  void setNextDueDate(DateTime value) => state = state.copyWith(nextDueDate: value);
+  void setEndDate(DateTime? value) => state = state.copyWith(endDate: value);
+
+  // 수정 모드일 때 상태 초기화
   void initializeForEdit(RepeatingTransaction rule, List<Account> allAccounts) {
-    state = RepeatingEntryState(
+    final fromAcc = allAccounts.firstWhere((a) => a.id == rule.fromAccountId);
+    final toAcc = allAccounts.firstWhere((a) => a.id == rule.toAccountId);
+
+    state = state.copyWith(
       description: rule.description,
       amount: rule.amount,
-      fromAccount: allAccounts.firstWhere((a) => a.id == rule.fromAccountId),
-      toAccount: allAccounts.firstWhere((a) => a.id == rule.toAccountId),
+      fromAccount: fromAcc,
+      toAccount: toAcc,
       entryType: rule.entryType,
       frequency: rule.frequency,
       nextDueDate: rule.nextDueDate,
       endDate: rule.endDate,
     );
   }
-
-  void setDescription(String value) => state = state.copyWith(description: value);
-  void setAmount(double value) => state = state.copyWith(amount: value);
-  void setFromAccount(Account value) => state = state.copyWith(fromAccount: value);
-  void setToAccount(Account value) => state = state.copyWith(toAccount: value);
-  void setEntryType(EntryScreenType value) => state = state.copyWith(entryType: value, resetToAccount: true);
-  void setFrequency(Frequency value) => state = state.copyWith(frequency: value);
-  void setNextDueDate(DateTime value) => state = state.copyWith(nextDueDate: value);
-  void setEndDate(DateTime? value) => state = state.copyWith(endDate: value);
 
   // 기존 거래로부터 상태를 초기화하는 새로운 메서드
   void initializeFromTransaction(Transaction transaction, List<Account> allAccounts) {
@@ -103,17 +109,14 @@ class RepeatingEntryViewModel extends StateNotifier<RepeatingEntryState> {
       fromAccount: fromAcc,
       toAccount: toAcc,
       entryType: type,
-      // 시작 예정일은 오늘 이후 가장 가까운 날로 설정하거나, 사용자가 선택하도록 둘 수 있습니다.
-      // 여기서는 기본값(오늘)을 그대로 사용합니다.
-      nextDueDate: DateTime.now(), 
+      nextDueDate: DateTime.now(),
     );
   }
 }
 
-
-
-// ViewModel을 제공하는 Provider
+// --- 👇 [추가] 누락되었던 Provider 선언 코드 ---
 final repeatingEntryProvider =
     StateNotifierProvider.autoDispose<RepeatingEntryViewModel, RepeatingEntryState>(
   (ref) => RepeatingEntryViewModel(),
 );
+// ------------------------------------------

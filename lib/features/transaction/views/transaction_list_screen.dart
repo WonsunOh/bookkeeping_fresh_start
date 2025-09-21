@@ -1,11 +1,14 @@
 // lib/features/transaction/views/transaction_list_screen.dart
 
+// ignore_for_file: unused_result
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/widgets/responsive_layout.dart';
+import '../viewmodels/account_provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/transaction_viewmodel.dart';
 
@@ -97,37 +100,46 @@ class TransactionListScreen extends ConsumerWidget {
             const Divider(height: 1),
             // 거래 목록 UI
             Expanded(
-              child: asyncTransactions.when(
-                data: (transactions) {
-                  if (transactions.isEmpty) {
-                    return const Center(child: Text('해당 조건의 거래가 없습니다.'));
-                  }
-                  return ListView.builder(
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = transactions[index];
-                      final amount = transaction.entries.first.amount;
-                      final formattedAmount =
-                          NumberFormat.decimalPattern('ko_KR').format(amount.toInt());
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: ListTile(
-                          title: Text(transaction.description),
-                          subtitle: Text(DateFormat('yyyy. MM. dd.').format(transaction.date.toLocal())),
-                          trailing: Text(
-                            '$formattedAmount 원',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: RefreshIndicator(
+                // 화면을 아래로 당기면 이 함수가 실행됩니다.
+          onRefresh: () async {
+            // 1. transactionProvider를 먼저 새로고침하고 기다립니다.
+            ref.refresh(transactionProvider);
+            // 2. accountsStreamProvider를 새로고침하고 기다립니다.
+            await ref.refresh(accountsStreamProvider.future);
+          },
+                child: asyncTransactions.when(
+                  data: (transactions) {
+                    if (transactions.isEmpty) {
+                      return const Center(child: Text('해당 조건의 거래가 없습니다.'));
+                    }
+                    return ListView.builder(
+                      itemCount: transactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = transactions[index];
+                        final amount = transaction.entries.first.amount;
+                        final formattedAmount =
+                            NumberFormat.decimalPattern('ko_KR').format(amount.toInt());
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            title: Text(transaction.description),
+                            subtitle: Text(DateFormat('yyyy. MM. dd.').format(transaction.date.toLocal())),
+                            trailing: Text(
+                              '$formattedAmount 원',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            onTap: () {
+                              context.push('/transaction/${transaction.id}');
+                            },
                           ),
-                          onTap: () {
-                            context.push('/transaction/${transaction.id}');
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
-                error: (err, stack) => Center(child: Text('에러가 발생했습니다: $err')),
-                loading: () => const Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                    );
+                  },
+                  error: (err, stack) => Center(child: Text('에러가 발생했습니다: $err')),
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                ),
               ),
             ),
           ],

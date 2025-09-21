@@ -1,19 +1,18 @@
 // lib/data/models/repeating_transaction.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../core/enums.dart';
 
 class RepeatingTransaction {
   final String id;
   final String description;
   final double amount;
-  final String fromAccountId; // 돈의 출처 계정 ID
-  final String toAccountId;   // 돈의 목적지 계정 ID
-  final EntryScreenType entryType; // 지출, 수입, 이체 유형
-  final Frequency frequency; // 반복 주기
-  final DateTime nextDueDate; // 다음에 이 거래가 생성될 날짜
-  final DateTime? endDate;    // 이 규칙이 만료되는 날짜 (선택 사항)
+  final String fromAccountId;
+  final String toAccountId;
+  final EntryScreenType entryType;
+  final Frequency frequency;
+  final DateTime nextDueDate;
+  final DateTime? endDate;
 
   RepeatingTransaction({
     required this.id,
@@ -27,7 +26,6 @@ class RepeatingTransaction {
     this.endDate,
   });
 
-  // Firestore와의 데이터 변환을 위한 메서드
   Map<String, dynamic> toFirestore() {
     return {
       'description': description,
@@ -52,6 +50,31 @@ class RepeatingTransaction {
       frequency: Frequency.values.firstWhere((e) => e.name == map['frequency']),
       nextDueDate: (map['nextDueDate'] as Timestamp).toDate(),
       endDate: map['endDate'] != null ? (map['endDate'] as Timestamp).toDate() : null,
+    );
+  }
+
+  // 👇 [추가] 'copyWith' 미정의 에러 해결을 위한 메서드
+  RepeatingTransaction copyWith({
+    String? id,
+    String? description,
+    double? amount,
+    String? fromAccountId,
+    String? toAccountId,
+    EntryScreenType? entryType,
+    Frequency? frequency,
+    DateTime? nextDueDate,
+    DateTime? endDate,
+  }) {
+    return RepeatingTransaction(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      fromAccountId: fromAccountId ?? this.fromAccountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      entryType: entryType ?? this.entryType,
+      frequency: frequency ?? this.frequency,
+      nextDueDate: nextDueDate ?? this.nextDueDate,
+      endDate: endDate ?? this.endDate,
     );
   }
 }
