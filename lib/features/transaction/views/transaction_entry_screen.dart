@@ -88,6 +88,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
 
     // ... (이하 build 메서드의 나머지 코드는 이전과 동일합니다) ...
     final assetAccounts = ref.watch(accountsByTypeProvider(AccountType.asset));
+     final liabilityAccounts = ref.watch(accountsByTypeProvider(AccountType.liability));
     final expenseAccounts = ref.watch(accountsByTypeProvider(AccountType.expense));
     final revenueAccounts = ref.watch(accountsByTypeProvider(AccountType.revenue));
     final equityAccounts = ref.watch(accountsByTypeProvider(AccountType.equity));
@@ -97,21 +98,26 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
     final List<Account> toAccounts;
     final String toAccountLabel;
 
-    if (entryState.entryType == EntryScreenType.income) {
-      fromAccounts = [...revenueAccounts, ...equityAccounts];
-      fromAccountLabel = '어디서 (수입/자본)';
-      toAccounts = assetAccounts;
-      toAccountLabel = '어디로 (자산)';
-    } else {
-      fromAccounts = assetAccounts;
-      fromAccountLabel = '어디서 (자산)';
-      if (entryState.entryType == EntryScreenType.expense) {
-        toAccounts = expenseAccounts;
-        toAccountLabel = '무엇을 위해 (비용)';
-      } else { // Transfer
+    switch (entryState.entryType) {
+      case EntryScreenType.income:
+        fromAccounts = [...revenueAccounts, ...equityAccounts];
+        fromAccountLabel = '어디서 (수입/자본)';
         toAccounts = assetAccounts;
         toAccountLabel = '어디로 (자산)';
-      }
+        break;
+      case EntryScreenType.expense:
+        fromAccounts = [...assetAccounts, ...liabilityAccounts]; 
+        fromAccountLabel = '어디서 (자산/부채)';
+        toAccounts = expenseAccounts;
+        toAccountLabel = '무엇을 위해 (비용)';
+        break;
+      case EntryScreenType.transfer:
+        fromAccounts = assetAccounts;
+        fromAccountLabel = '어디서 (자산)';
+        // '어디로' 계정에 부채 계정을 추가하여 부채 상환이 가능하도록 합니다.
+        toAccounts = [...assetAccounts, ...liabilityAccounts]; 
+        toAccountLabel = '어디로 (자산/부채)'; // 라벨도 수정
+        break;
     }
 
     final validFromAccount = entryState.fromAccount != null && fromAccounts.contains(entryState.fromAccount)
