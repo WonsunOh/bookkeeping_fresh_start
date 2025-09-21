@@ -39,6 +39,18 @@ class TransactionDetailScreen extends ConsumerWidget {
         ),
           title: const Text('거래 상세 정보'),
           actions: [
+            // --- 반복 거래로 추가 버튼 ---
+            IconButton(
+              icon: const Icon(Icons.replay_circle_filled_outlined),
+              tooltip: '반복 거래로 추가',
+              onPressed: () {
+                // 현재 보고 있는 transaction 객체를 extra에 담아서
+                // 반복 거래 추가 화면으로 전달합니다.
+                asyncTransaction.whenData((transaction) {
+                  context.push('/repeating-transactions/entry', extra: transaction);
+                });
+              },
+            ),
             // 수정 버튼
             IconButton(
               icon: const Icon(Icons.edit),
@@ -52,25 +64,47 @@ class TransactionDetailScreen extends ConsumerWidget {
             // 삭제 버튼
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: () {
-                showDialog(
+              onPressed: () async { // 1. async 키워드 추가
+                // 2. showDialog가 끝날 때까지 기다리고, 그 결과를 받습니다.
+                final bool? shouldDelete = await showDialog<bool>(
                   context: context,
-                  builder: (context) => AlertDialog(
+                  builder: (ctx) => AlertDialog(
                     title: const Text('삭제 확인'),
                     content: const Text('이 거래를 정말 삭제하시겠습니까?'),
                     actions: [
-                      TextButton(onPressed: () => context.pop(), child: const Text('취소')),
                       TextButton(
-                        onPressed: () {
-                          ref.read(transactionProvider.notifier).deleteTransaction(transactionId);
-                          context.pop(); // 다이얼로그 닫기
-                          context.pop(); // 상세 화면 닫기
-                        },
+                        // '취소'를 누르면 false를 반환하고 닫습니다.
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('취소'),
+                      ),
+                      TextButton(
+                        // '삭제'를 누르면 true를 반환하고 닫습니다.
+                        onPressed: () => Navigator.of(ctx).pop(true),
                         child: const Text('삭제', style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   ),
                 );
+
+                if (shouldDelete == true) {
+                  // --- 👇 여기가 최종 수정의 핵심입니다 ---
+                  // 1. 먼저 현재 화면에서 안전하게 벗어납니다.
+                  if (context.mounted) {
+                    context.go('/');
+                  }
+                  
+                  // 2. 화면을 벗어난 후에 데이터 삭제를 요청합니다.
+                  // 이제 UI 충돌이 발생할 수 없습니다.
+                  // await을 사용하지 않아도 되지만, 에러 핸들링 등을 위해 유지할 수 있습니다.
+                  try {
+                    await ref.read(transactionProvider.notifier).deleteTransaction(transactionId);
+                  } catch (e) {
+                    // 에러가 발생하면 스낵바 대신 콘솔에 로그를 남기거나
+                    // 별도의 에러 로깅 서비스를 사용할 수 있습니다.
+                    debugPrint("삭제 중 오류 발생: $e");
+                  }
+                  // ------------------------------------
+                }
               },
             ),
           ],

@@ -29,27 +29,25 @@ class TransactionEntryScreen extends ConsumerStatefulWidget {
 class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen> {
   final _amountController = TextEditingController();
   final _memoController = TextEditingController();
+  bool _isLoading = false;
 
   bool get _isEditMode => widget.transaction != null;
 
   @override
   void initState() {
     super.initState();
+    // 위젯이 빌드된 후 딱 한 번만 실행되어 초기 상태를 설정합니다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // initState에서는 ViewModel을 초기화하고 컨트롤러에 초기값을 설정하는 역할만 합니다.
+      final notifier = ref.read(transactionEntryProvider.notifier);
       if (_isEditMode) {
+        // '수정' 모드일 경우, 전달받은 거래 정보로 ViewModel 상태를 초기화합니다.
         final accounts = ref.read(accountsStreamProvider).value;
         if (accounts != null) {
-          ref
-              .read(transactionEntryProvider.notifier)
-              .initializeForEdit(widget.transaction!, accounts);
-
-          // ViewModel의 초기 상태를 가져와 컨트롤러에 설정합니다.
-          final initialState = ref.read(transactionEntryProvider);
-          _amountController.text =
-              NumberFormat.decimalPattern('ko_KR').format(initialState.amount);
-          _memoController.text = initialState.description;
+          notifier.initializeForEdit(widget.transaction!, accounts);
         }
+      } else {
+        // '추가' 모드일 경우, ViewModel 상태를 기본 '지출' 유형으로 초기화합니다.
+        notifier.setEntryType(EntryScreenType.expense);
       }
     });
   }
@@ -63,69 +61,67 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
 
   @override
   Widget build(BuildContext context) {
-    // --- 해결책: ref.listen을 initState가 아닌 build 메서드 안으로 이동 ---
-    // 이 위치에서 listen을 사용하면 Riverpod의 생명주기와 일치하여 안전합니다.
-    ref.listen<TransactionEntryState>(transactionEntryProvider, (previous, next) {
-      // 금액 상태가 변경되었을 때 컨트롤러의 텍스트를 업데이트
-      final formattedAmount = NumberFormat.decimalPattern('ko_KR').format(next.amount);
-      if (_amountController.text != formattedAmount) {
-        _amountController.text = formattedAmount;
-        // 커서를 맨 뒤로 이동
-        _amountController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _amountController.text.length));
-      }
-      // 메모 상태가 변경되었을 때 컨트롤러의 텍스트를 업데이트
-      if (_memoController.text != next.description) {
-        _memoController.text = next.description;
-        _memoController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _memoController.text.length));
-      }
-    });
-    // -----------------------------------------------------------------
-
+    // ViewModel의 상태가 변경되면 이 화면은 자동으로 다시 그려집니다.
     final entryState = ref.watch(transactionEntryProvider);
     final entryViewModel = ref.read(transactionEntryProvider.notifier);
 
-    // ... (이하 build 메서드의 나머지 코드는 이전과 동일합니다) ...
-    final assetAccounts = ref.watch(accountsByTypeProvider(AccountType.asset));
-     final liabilityAccounts = ref.watch(accountsByTypeProvider(AccountType.liability));
-    final expenseAccounts = ref.watch(accountsByTypeProvider(AccountType.expense));
-    final revenueAccounts = ref.watch(accountsByTypeProvider(AccountType.revenue));
-    final equityAccounts = ref.watch(accountsByTypeProvider(AccountType.equity));
+    // 컨트롤러와 ViewModel 상태를 동기화합니다 (ViewModel -> UI 단방향).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final formattedAmount = NumberFormat.decimalPattern('ko_KR').format(entryState.amount);
+      if (_amountController.text != formattedAmount) {
+        _amountController.text = formattedAmount;
+        _amountController.selection = TextSelection.fromPosition(TextPosition(offset: _amountController.text.length));
+      }
+      if (_memoController.text != entryState.description) {
+        _memoController.text = entryState.description;
+        _memoController.selection = TextSelection.fromPosition(TextPosition(offset: _memoController.text.length));
+      }
+    });
 
-    final List<Account> fromAccounts;
+    final allAccounts = ref.watch(accountsStreamProvider).value ?? [];
+    
+    // 거래 유형에 따라 드롭다운에 표시될 계정 유형 목록과 라벨을 결정합니다.
+    final List<AccountType> fromAccountTypes;
     final String fromAccountLabel;
-    final List<Account> toAccounts;
+    final List<AccountType> toAccountTypes;
     final String toAccountLabel;
 
     switch (entryState.entryType) {
       case EntryScreenType.income:
-        fromAccounts = [...revenueAccounts, ...equityAccounts];
-        fromAccountLabel = '어디서 (수입/자본)';
-        toAccounts = assetAccounts;
-        toAccountLabel = '어디로 (자산)';
+        fromAccountTypes = [AccountType.revenue, AccountType.equity, AccountType.liability];
+        fromAccountLabel = '어디서 (수입/자본/부채)';
+        toAccountTypes = [AccountType.asset, AccountType.liability];
+        toAccountLabel = '어디로 (자산/부채)';
         break;
       case EntryScreenType.expense:
-        fromAccounts = [...assetAccounts, ...liabilityAccounts]; 
+        fromAccountTypes = [AccountType.asset, AccountType.liability]; 
         fromAccountLabel = '어디서 (자산/부채)';
-        toAccounts = expenseAccounts;
-        toAccountLabel = '무엇을 위해 (비용)';
+        toAccountTypes = [AccountType.expense, AccountType.equity];
+        toAccountLabel = '무엇을 위해 (비용/자본)';
         break;
       case EntryScreenType.transfer:
-        fromAccounts = assetAccounts;
+        fromAccountTypes = [AccountType.asset];
         fromAccountLabel = '어디서 (자산)';
-        // '어디로' 계정에 부채 계정을 추가하여 부채 상환이 가능하도록 합니다.
-        toAccounts = [...assetAccounts, ...liabilityAccounts]; 
-        toAccountLabel = '어디로 (자산/부채)'; // 라벨도 수정
+        toAccountTypes = [AccountType.asset, AccountType.liability]; 
+        toAccountLabel = '어디로 (자산/부채)';
         break;
     }
 
-    final validFromAccount = entryState.fromAccount != null && fromAccounts.contains(entryState.fromAccount)
-        ? entryState.fromAccount
-        : null;
-    final validToAccount = entryState.toAccount != null && toAccounts.contains(entryState.toAccount)
-        ? entryState.toAccount
-        : null;
+    // ViewModel에 저장된 '선택된 계정 유형'에 따라 실제 계정 목록을 필터링합니다.
+    final fromAccounts = entryState.fromAccountType == null 
+        ? <Account>[] 
+        : allAccounts.where((a) => a.type == entryState.fromAccountType).toList();
+    final toAccounts = entryState.toAccountType == null
+        ? <Account>[]
+        : allAccounts.where((a) => a.type == entryState.toAccountType).toList();
+
+    // 충돌 방지를 위한 유효성 검사 로직
+    final validFromAccountType = fromAccountTypes.contains(entryState.fromAccountType)
+        ? entryState.fromAccountType : null;
+    final validToAccountType = toAccountTypes.contains(entryState.toAccountType)
+        ? entryState.toAccountType : null;
+    
+
 
     return ResponsiveLayout(
       child: Scaffold(
@@ -152,7 +148,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                 leading: const Icon(Icons.calendar_today),
                 title: const Text('날짜'),
                 trailing: TextButton(
-                  child: Text('${entryState.date.year}-${entryState.date.month}-${entryState.date.day}'),
+                  child: Text(DateFormat('yyyy.MM.dd').format(entryState.date)),
                   onPressed: () async {
                     final pickedDate = await showDatePicker(
                       context: context,
@@ -160,37 +156,81 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2101),
                     );
-                    if (pickedDate != null) {
-                      entryViewModel.setDate(pickedDate);
-                    }
+                    if (pickedDate != null) entryViewModel.setDate(pickedDate);
                   },
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<Account>(
-                value: validFromAccount,
-                decoration: InputDecoration(labelText: fromAccountLabel, border: const OutlineInputBorder()),
-                items: fromAccounts.map((account) {
-                  return DropdownMenuItem(value: account, child: Text(account.name));
-                }).toList(),
-                onChanged: (account) {
-                  if (account != null) {
-                    entryViewModel.setFromAccount(account);
-                  }
-                },
+              Text(fromAccountLabel, style: Theme.of(context).textTheme.titleSmall),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<AccountType>(
+                      value: validFromAccountType,
+                      hint: const Text('유형'),
+                      items: fromAccountTypes.map((type) => DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))).toList(),
+                      onChanged: (type) {
+                        if (type != null) entryViewModel.setFromAccountType(type);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    // --- 👇 [수정] DropdownButtonFormField<String>으로 변경 ---
+                    child: DropdownButtonFormField<String>(
+                      value: entryState.fromAccountId, 
+                      hint: const Text('계정과목'),
+                      items: fromAccounts.map((account) => DropdownMenuItem(
+                        value: account.id, // 아이템의 값도 ID 사용
+                        child: Text(account.name),
+                      )).toList(),
+                      onChanged: (accountId) {
+                        if (accountId != null) {
+                          // ID로 전체 목록에서 Account 객체를 찾아 ViewModel에 전달
+                          final selectedAccount = allAccounts.firstWhere((a) => a.id == accountId);
+                          entryViewModel.setFromAccount(selectedAccount);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<Account>(
-                value: validToAccount,
-                decoration: InputDecoration(labelText: toAccountLabel, border: const OutlineInputBorder()),
-                items: toAccounts.map((account) {
-                  return DropdownMenuItem(value: account, child: Text(account.name));
-                }).toList(),
-                onChanged: (account) {
-                  if (account != null) {
-                    entryViewModel.setToAccount(account);
-                  }
-                },
+              Text(toAccountLabel, style: Theme.of(context).textTheme.titleSmall),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<AccountType>(
+                      value: validToAccountType,
+                      hint: const Text('유형'),
+                      items: toAccountTypes.map((type) => DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))).toList(),
+                      onChanged: (type) {
+                        if (type != null) entryViewModel.setToAccountType(type);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: entryState.toAccountId, // 값으로 ID 사용
+                      hint: const Text('계정과목'),
+                      items: toAccounts.map((account) => DropdownMenuItem(
+                        value: account.id, // 아이템의 값도 ID 사용
+                        child: Text(account.name),
+                      )).toList(),
+                      onChanged: (accountId) {
+                        if (accountId != null) {
+                          final selectedAccount = allAccounts.firstWhere((a) => a.id == accountId);
+                          entryViewModel.setToAccount(selectedAccount);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -200,7 +240,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  CurrencyInputFormatter(),
+                 CurrencyInputFormatter(),
                 ],
                 onChanged: (value) {
                   final amount = double.tryParse(value.replaceAll(',', '')) ?? 0.0;
@@ -218,64 +258,90 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                 },
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () async {
+                    final currentState = ref.read(transactionEntryProvider);
+                    if (currentState.fromAccountId == null ||
+                        currentState.toAccountId == null ||
+                        currentState.amount <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('모든 항목을 올바르게 입력해주세요.')),
+                      );
+                      return;
+                    }
+                    if (currentState.fromAccountId == currentState.toAccountId) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('같은 계좌 간 거래는 할 수 없습니다.')),
+                      );
+                      return;
+                    }
+
+                    setState(() { _isLoading = true; });
+
+                    try {
+                      final List<JournalEntry> entries = [
+                        JournalEntry(accountId: currentState.toAccountId!, type: EntryType.debit, amount: currentState.amount),
+                        JournalEntry(accountId: currentState.fromAccountId!, type: EntryType.credit, amount: currentState.amount),
+                      ];
+                      
+                      if (_isEditMode) {
+                        final updatedTransaction = Transaction(
+                          id: widget.transaction!.id,
+                        date: entryState.date,
+                        description: entryState.description.isEmpty 
+                            ? allAccounts.firstWhere((a) => a.id == entryState.toAccountId).name 
+                            : entryState.description,
+                        entries: entries,
+                        );
+                        await ref.read(transactionProvider.notifier).updateTransaction(updatedTransaction);
+                      } else {
+                        final newTransaction = Transaction(
+                          id: const Uuid().v4(),
+                          date: currentState.date,
+                          description: entryState.description.isEmpty 
+                            ? allAccounts.firstWhere((a) => a.id == entryState.toAccountId).name 
+                            : entryState.description,
+                        entries: entries,
+                        );
+                        await ref.read(transactionProvider.notifier).addTransaction(newTransaction);
+                      }
+                      
+                      if (mounted) context.go('/');
+
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() { _isLoading = false; });
+                      }
+                    }
+                  },
+                  child: const Text('저장하기'),
                 ),
-                onPressed: () {
-                  if (entryState.fromAccount == null ||
-                      entryState.toAccount == null ||
-                      entryState.amount <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('모든 항목을 올바르게 입력해주세요.')),
-                    );
-                    return;
-                  }
-                  if (entryState.fromAccount!.id == entryState.toAccount!.id) {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('같은 계좌 간 거래는 할 수 없습니다.')),
-                    );
-                    return;
-                  }
-      
-                  final List<JournalEntry> entries;
-                  if (entryState.entryType == EntryScreenType.income) {
-                    entries = [
-                      JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
-                      JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
-                    ];
-                  } else {
-                    entries = [
-                      JournalEntry(accountId: entryState.toAccount!.id, type: EntryType.debit, amount: entryState.amount),
-                      JournalEntry(accountId: entryState.fromAccount!.id, type: EntryType.credit, amount: entryState.amount),
-                    ];
-                  }
-                  
-                  if (_isEditMode) {
-                    final updatedTransaction = Transaction(
-                      id: widget.transaction!.id,
-                      date: entryState.date,
-                      description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
-                      entries: entries,
-                    );
-                    ref.read(transactionProvider.notifier).updateTransaction(updatedTransaction);
-                  } else {
-                    final newTransaction = Transaction(
-                      id: const Uuid().v4(),
-                      date: entryState.date,
-                      description: entryState.description.isEmpty ? entryState.toAccount!.name : entryState.description,
-                      entries: entries,
-                    );
-                    ref.read(transactionProvider.notifier).addTransaction(newTransaction);
-                  }
-                  context.go('/');
-                },
-                child: const Text('저장하기'),
-              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _getAccountTypeLabel(AccountType type) {
+    switch (type) {
+      case AccountType.asset: return '자산';
+      case AccountType.liability: return '부채';
+      case AccountType.equity: return '자본';
+      case AccountType.revenue: return '수익';
+      case AccountType.expense: return '비용';
+    }
   }
 }

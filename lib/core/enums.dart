@@ -25,5 +25,6 @@ enum Frequency {
   daily,
   weekly,
   monthly,
+  quarterly,
   yearly,
 }

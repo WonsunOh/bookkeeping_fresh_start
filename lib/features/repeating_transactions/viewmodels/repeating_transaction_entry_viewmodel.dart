@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../../core/enums.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/repeating_transaction.dart';
+import '../../../data/models/transaction.dart';
 
 // 반복 거래 설정 화면의 상태를 나타내는 클래스
 @immutable
@@ -78,7 +79,38 @@ class RepeatingEntryViewModel extends StateNotifier<RepeatingEntryState> {
   void setFrequency(Frequency value) => state = state.copyWith(frequency: value);
   void setNextDueDate(DateTime value) => state = state.copyWith(nextDueDate: value);
   void setEndDate(DateTime? value) => state = state.copyWith(endDate: value);
+
+  // 기존 거래로부터 상태를 초기화하는 새로운 메서드
+  void initializeFromTransaction(Transaction transaction, List<Account> allAccounts) {
+    final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
+    final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
+
+    final fromAcc = allAccounts.firstWhere((a) => a.id == creditEntry.accountId);
+    final toAcc = allAccounts.firstWhere((a) => a.id == debitEntry.accountId);
+
+    EntryScreenType type;
+    if (fromAcc.type == AccountType.asset && toAcc.type == AccountType.asset) {
+      type = EntryScreenType.transfer;
+    } else if (fromAcc.type == AccountType.asset || fromAcc.type == AccountType.liability) {
+      type = EntryScreenType.expense;
+    } else {
+      type = EntryScreenType.income;
+    }
+
+    state = state.copyWith(
+      description: transaction.description,
+      amount: debitEntry.amount,
+      fromAccount: fromAcc,
+      toAccount: toAcc,
+      entryType: type,
+      // 시작 예정일은 오늘 이후 가장 가까운 날로 설정하거나, 사용자가 선택하도록 둘 수 있습니다.
+      // 여기서는 기본값(오늘)을 그대로 사용합니다.
+      nextDueDate: DateTime.now(), 
+    );
+  }
 }
+
+
 
 // ViewModel을 제공하는 Provider
 final repeatingEntryProvider =

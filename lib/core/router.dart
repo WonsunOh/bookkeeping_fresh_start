@@ -89,8 +89,20 @@ final router = GoRouter(
       path: '/repeating-transactions/entry',
       name: 'repeatingTransactionEntry',
       builder: (context, state) {
-        final rule = state.extra as RepeatingTransaction?;
-        return AddEditRepeatingTransactionScreen(rule: rule);
+        // --- 👇 [수정] 전달받은 extra 객체의 타입을 확인하여 분기 처리합니다 ---
+        if (state.extra is RepeatingTransaction) {
+          // 1. 수정 모드: RepeatingTransaction 객체가 넘어온 경우
+          final rule = state.extra as RepeatingTransaction;
+          return AddEditRepeatingTransactionScreen(rule: rule);
+        } else if (state.extra is Transaction) {
+          // 2. 기존 거래로부터 추가 모드: Transaction 객체가 넘어온 경우
+          final transaction = state.extra as Transaction;
+          return AddEditRepeatingTransactionScreen(transaction: transaction);
+        } else {
+          // 3. 순수 추가 모드: 아무것도 넘어오지 않은 경우
+          return const AddEditRepeatingTransactionScreen();
+        }
+        // ----------------------------------------------------------
       },
     ),
      GoRoute(

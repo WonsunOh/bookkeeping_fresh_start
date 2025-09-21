@@ -1,12 +1,14 @@
 // lib/data/models/account.dart
+import 'package:equatable/equatable.dart';
+
 import '../../core/enums.dart';
 
-class Account {
+class Account extends Equatable {
   final String id;
   final String name;
   final AccountType type;
 
-  Account({
+  const Account({
     required this.id,
     required this.name,
     required this.type,
@@ -32,6 +34,8 @@ class Account {
         other.name == name &&
         other.type == type;
   }
+  @override
+  List<Object?> get props => [id];
 
   @override
   int get hashCode => id.hashCode ^ name.hashCode ^ type.hashCode;

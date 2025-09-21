@@ -53,6 +53,9 @@ class RepeatingTransactionService {
       case Frequency.monthly:
         newNextDueDate = DateTime(rule.nextDueDate.year, rule.nextDueDate.month + 1, rule.nextDueDate.day);
         break;
+      case Frequency.quarterly:
+        newNextDueDate = DateTime(rule.nextDueDate.year, rule.nextDueDate.month + 3, rule.nextDueDate.day);
+        break;
       case Frequency.yearly:
         newNextDueDate = DateTime(rule.nextDueDate.year + 1, rule.nextDueDate.month, rule.nextDueDate.day);
         break;

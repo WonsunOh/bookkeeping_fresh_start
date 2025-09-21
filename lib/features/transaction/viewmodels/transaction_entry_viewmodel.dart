@@ -1,112 +1,154 @@
 // lib/features/transaction/viewmodels/transaction_entry_viewmodel.dart
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
 import '../../../core/enums.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/transaction.dart';
 
-// 거래 기록 화면의 상태를 나타내는 클래스
+@immutable
 class TransactionEntryState {
   final DateTime date;
-  final Account? fromAccount; // 출금 계좌 (자산)
-  final Account? toAccount; // 입금 계좌 또는 비용/수익/자산 계정
   final double amount;
   final String description;
-  final EntryScreenType entryType; // 거래 유형 상태 추가
+  final EntryScreenType entryType;
+  final String? fromAccountId;
+  final String? toAccountId;
+  final AccountType? fromAccountType;
+  final AccountType? toAccountType;
 
-  TransactionEntryState({
+  const TransactionEntryState({
     required this.date,
-    this.fromAccount,
-    this.toAccount,
-    this.amount = 0.0,
-    this.description = '',
-    this.entryType = EntryScreenType.expense, // 기본값은 '지출'
+    required this.amount,
+    required this.description,
+    required this.entryType,
+    this.fromAccountId,
+    this.toAccountId,
+    this.fromAccountType,
+    this.toAccountType,
   });
 
   TransactionEntryState copyWith({
     DateTime? date,
-    Account? fromAccount,
-    // toAccount를 null로 초기화할 수 있도록 변경
-    Account? toAccount,
     double? amount,
     String? description,
     EntryScreenType? entryType,
+    Account? fromAccount,
+    Account? toAccount,
+    AccountType? fromAccountType,
+    AccountType? toAccountType,
+    bool resetFromAccount = false,
     bool resetToAccount = false,
+    String? fromAccountId,
+    String? toAccountId,
   }) {
     return TransactionEntryState(
       date: date ?? this.date,
-      fromAccount: fromAccount ?? this.fromAccount,
-      toAccount: resetToAccount ? null : toAccount ?? this.toAccount,
       amount: amount ?? this.amount,
       description: description ?? this.description,
       entryType: entryType ?? this.entryType,
+      fromAccountType: fromAccountType ?? this.fromAccountType,
+      toAccountType: toAccountType ?? this.toAccountType,
+
+      fromAccountId: fromAccountId ?? this.fromAccountId,
+      toAccountId: toAccountId ?? this.toAccountId,
     );
   }
 }
 
-// TransactionEntryState를 관리하는 Notifier
 class TransactionEntryViewModel extends StateNotifier<TransactionEntryState> {
-  final Ref ref;
-  TransactionEntryViewModel(this.ref) : super(TransactionEntryState(date: DateTime.now()));
+  TransactionEntryViewModel()
+      : super(
+          TransactionEntryState(
+            date: DateTime.now(),
+            amount: 0.0,
+            description: '',
+            entryType: EntryScreenType.expense,
+            fromAccountType: AccountType.asset,
+            toAccountType: AccountType.expense,
+          ),
+        );
 
-  void setDate(DateTime date) {
-    state = state.copyWith(date: date);
+  void setDate(DateTime newDate) => state = state.copyWith(date: newDate);
+  void setAmount(double newAmount) => state = state.copyWith(amount: newAmount);
+  void setDescription(String newDescription) =>
+      state = state.copyWith(description: newDescription);
+
+  void setEntryType(EntryScreenType newType) {
+    AccountType? newFromType;
+    AccountType? newToType;
+    switch (newType) {
+      case EntryScreenType.income:
+        newToType = AccountType.asset;
+        break;
+      case EntryScreenType.expense:
+        newFromType = AccountType.asset;
+        newToType = AccountType.expense;
+        break;
+      case EntryScreenType.transfer:
+        newFromType = AccountType.asset;
+        newToType = AccountType.asset;
+        break;
+    }
+    state = state.copyWith(
+      entryType: newType,
+      resetFromAccount: true,
+      resetToAccount: true,
+      fromAccountType: newFromType,
+      toAccountType: newToType,
+    );
   }
 
-  void setFromAccount(Account account) {
-    state = state.copyWith(fromAccount: account);
+  void setFromAccountType(AccountType type) {
+    state = state.copyWith(fromAccountType: type, resetFromAccount: true);
   }
 
-  void setToAccount(Account account) {
-    state = state.copyWith(toAccount: account);
+  void setToAccountType(AccountType type) {
+    state = state.copyWith(toAccountType: type, resetToAccount: true);
   }
 
-  void setAmount(double amount) {
-    state = state.copyWith(amount: amount);
+  // --- 👇 [수정] set 메서드들이 ID를 받도록 변경 ---
+  void setFromAccount(Account? account) {
+    state = state.copyWith(fromAccountId: account?.id, fromAccountType: account?.type);
   }
 
-  void setDescription(String description) {
-    state = state.copyWith(description: description);
+  void setToAccount(Account? account) {
+    state = state.copyWith(toAccountId: account?.id, toAccountType: account?.type);
   }
 
-  // 거래 유형을 변경하는 메서드 추가
-  void setEntryType(EntryScreenType type) {
-    // 유형이 변경되면 대상 계정(toAccount) 선택을 초기화하여 오류를 방지합니다.
-    state = state.copyWith(entryType: type, resetToAccount: true);
-  }
-
-  // 수정 모드를 위해 거래 데이터로 상태를 초기화하는 메서드
   void initializeForEdit(Transaction transaction, List<Account> allAccounts) {
-    final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
-    final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
-    
-    // 전달받은 계정 목록에서 필요한 계정을 찾습니다.
-    final fromAccount = allAccounts.firstWhere((acc) => acc.id == creditEntry.accountId);
-    final toAccount = allAccounts.firstWhere((acc) => acc.id == debitEntry.accountId);
-    
+    final creditEntry =
+        transaction.entries.firstWhere((e) => e.type == EntryType.credit);
+    final debitEntry =
+        transaction.entries.firstWhere((e) => e.type == EntryType.debit);
+    final fromAcc = allAccounts.firstWhere((a) => a.id == creditEntry.accountId);
+    final toAcc = allAccounts.firstWhere((a) => a.id == debitEntry.accountId);
     EntryScreenType type;
-    if (toAccount.type == AccountType.expense) {
-      type = EntryScreenType.expense;
-    } else if (toAccount.type == AccountType.revenue) {
-      type = EntryScreenType.income;
-    } else {
+    if (fromAcc.type == AccountType.asset && toAcc.type == AccountType.asset) {
       type = EntryScreenType.transfer;
+    } else if ((fromAcc.type == AccountType.asset ||
+            fromAcc.type == AccountType.liability) &&
+        (toAcc.type == AccountType.expense || toAcc.type == AccountType.equity)) {
+      type = EntryScreenType.expense;
+    } else {
+      type = EntryScreenType.income;
     }
 
     state = TransactionEntryState(
       date: transaction.date,
-      fromAccount: fromAccount,
-      toAccount: toAccount,
-      amount: transaction.entries.first.amount,
+      amount: debitEntry.amount,
       description: transaction.description,
+      fromAccountId: fromAcc.id, // ID 저장
+      toAccountId: toAcc.id,     // ID 저장
+      fromAccountType: fromAcc.type,
+      toAccountType: toAcc.type,
       entryType: type,
     );
   }
-
 }
 
-final transactionEntryProvider =
-    StateNotifierProvider.autoDispose<TransactionEntryViewModel, TransactionEntryState>(
-  (ref) => TransactionEntryViewModel(ref), // ref 전달
+final transactionEntryProvider = StateNotifierProvider.autoDispose<
+    TransactionEntryViewModel, TransactionEntryState>(
+  (ref) => TransactionEntryViewModel(),
 );
