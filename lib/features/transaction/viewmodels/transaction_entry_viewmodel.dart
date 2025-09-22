@@ -73,19 +73,23 @@ class TransactionEntryViewModel extends StateNotifier<TransactionEntryState> {
 
   void setEntryType(EntryScreenType newType) {
     if (state.entryType == newType) return;
+
     AccountType? newFromType;
     AccountType? newToType;
+    
     switch (newType) {
-      case EntryScreenType.income: newToType = AccountType.asset; break;
+      case EntryScreenType.income: newFromType = AccountType.revenue; newToType = AccountType.asset; break;
       case EntryScreenType.expense: newFromType = AccountType.asset; newToType = AccountType.expense; break;
       case EntryScreenType.transfer: newFromType = AccountType.asset; newToType = AccountType.asset; break;
     }
     state = state.copyWith(
       entryType: newType,
-      fromAccountType: newFromType,
-      toAccountType: newToType,
-    );
-  }
+    fromAccountType: newFromType,
+    toAccountType: newToType,
+    fromAccountId: null, // 기존 계정 선택 초기화
+    toAccountId: null,   // 기존 계정 선택 초기화
+  );
+}
 
   void setFromAccountType(AccountType type) {
     state = state.copyWith(fromAccountType: type, fromAccountId: null);
@@ -109,13 +113,29 @@ class TransactionEntryViewModel extends StateNotifier<TransactionEntryState> {
     final fromAcc = allAccounts.firstWhere((a) => a.id == creditEntry.accountId);
     final toAcc = allAccounts.firstWhere((a) => a.id == debitEntry.accountId);
     EntryScreenType type;
-    if (fromAcc.type == AccountType.asset && toAcc.type == AccountType.asset) {
-      type = EntryScreenType.transfer;
+    // 수정된 거래 유형 판별 로직
+  if (fromAcc.type == AccountType.asset && (toAcc.type == AccountType.asset || toAcc.type == AccountType.liability)) {
+    // 자산 → 자산/부채 = 이체
+    type = EntryScreenType.transfer;
+
     } else if ((fromAcc.type == AccountType.asset || fromAcc.type == AccountType.liability) && (toAcc.type == AccountType.expense || toAcc.type == AccountType.equity)) {
+      // 자산/부채 → 비용/자본 = 지출
       type = EntryScreenType.expense;
-    } else {
-      type = EntryScreenType.income;
-    }
+
+    } else if ((fromAcc.type == AccountType.revenue || fromAcc.type == AccountType.equity || fromAcc.type == AccountType.liability) && 
+             (toAcc.type == AccountType.asset || toAcc.type == AccountType.liability)) {
+    // 수익/자본/부채 → 자산/부채 = 수입
+    type = EntryScreenType.income;
+
+  } else {
+    // 기타 경우는 지출로 처리
+    type = EntryScreenType.expense;
+  }
+
+  print('=== 수정된 initializeForEdit 디버깅 ===');
+  print('fromAcc: ${fromAcc.name} (${fromAcc.type})');
+  print('toAcc: ${toAcc.name} (${toAcc.type})');
+  print('판별된 type: $type');
     
     state = TransactionEntryState(
       date: transaction.date,

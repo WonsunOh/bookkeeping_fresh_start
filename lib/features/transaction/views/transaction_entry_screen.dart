@@ -71,13 +71,32 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
           // Future.microtask를 사용하여 build가 끝난 직후에 상태를 변경합니다.
           Future.microtask(() {
             if (_isEditMode) {
-              entryViewModel.initializeForEdit(widget.transaction!, allAccounts);
+              print('=== 수정 모드 디버깅 ===');
+        print('Transaction: ${widget.transaction!.description}');
+        entryViewModel.initializeForEdit(widget.transaction!, allAccounts);
+        
+        // 초기화 후 상태 확인
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final state = ref.read(transactionEntryProvider);
+          print('초기화된 상태:');
+          print('- entryType: ${state.entryType}');
+          print('- fromAccountType: ${state.fromAccountType}');
+          print('- toAccountType: ${state.toAccountType}');
+          print('- fromAccountId: ${state.fromAccountId}');
+          print('- toAccountId: ${state.toAccountId}');
+           });
             } else {
               entryViewModel.setEntryType(EntryScreenType.expense);
             }
           });
           _isInitialized = true;
         }
+
+        // 디버깅 로그 추가
+  print('=== DropdownButton 디버깅 ===');
+  print('entryState.entryType: ${entryState.entryType}');
+  print('entryState.fromAccountType: ${entryState.fromAccountType}');
+  print('entryState.toAccountType: ${entryState.toAccountType}');
         // ------------------------------------
 
         final List<AccountType> fromAccountTypes;
@@ -88,7 +107,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
         switch (entryState.entryType) {
           case EntryScreenType.income:
             fromAccountTypes = [AccountType.revenue, AccountType.equity, AccountType.liability];
-            fromAccountLabel = '어디서 (수입/자본/부채)';
+            fromAccountLabel = '어디서 (수익/자본/부채)';
             toAccountTypes = [AccountType.asset, AccountType.liability];
             toAccountLabel = '어디로 (자산/부채)';
             break;
@@ -115,6 +134,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
 
         final validFromAccount = entryState.fromAccountId != null && fromAccounts.any((a) => a.id == entryState.fromAccountId)
             ? fromAccounts.firstWhere((a) => a.id == entryState.fromAccountId) : null;
+            
         final validToAccount = entryState.toAccountId != null && toAccounts.any((a) => a.id == entryState.toAccountId)
             ? toAccounts.firstWhere((a) => a.id == entryState.toAccountId) : null;
 
@@ -163,9 +183,13 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<AccountType>(
-                          value: entryState.fromAccountType,
+                          value: fromAccountTypes.contains(entryState.fromAccountType) 
+    ? entryState.fromAccountType 
+    : null, // value가 items에 없으면 null로 설정
                           hint: const Text('유형'),
-                          items: fromAccountTypes.map((type) => DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))).toList(),
+                          items: fromAccountTypes.toSet().map((type) => 
+    DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))
+  ).toList(),
                           onChanged: (type) {
                             if (type != null) entryViewModel.setFromAccountType(type);
                           },
@@ -192,9 +216,13 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<AccountType>(
-                          value: entryState.toAccountType,
+                          value: toAccountTypes.contains(entryState.toAccountType) 
+    ? entryState.toAccountType 
+    : null, // value가 items에 없으면 null로 설정
                           hint: const Text('유형'),
-                          items: toAccountTypes.map((type) => DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))).toList(),
+                          items: toAccountTypes.toSet().map((type) => 
+    DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))
+  ).toList(),
                           onChanged: (type) {
                             if (type != null) entryViewModel.setToAccountType(type);
                           },
