@@ -6,6 +6,7 @@ import '../data/models/account.dart';
 import '../data/models/repeating_transaction.dart';
 import '../data/models/transaction.dart';
 import '../features/budget/views/budget_screen.dart';
+import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/financial_statements/views/financial_statement_screen.dart';
 import '../features/repeating_transactions/views/add_edit_repeating_transaction_screen.dart';
 import '../features/repeating_transactions/views/repeating_transaction_list_screen.dart';
@@ -24,6 +25,11 @@ final router = GoRouter(
       path: '/',
       name: 'home',
       builder: (context, state) => const HomeScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard',
+      name: 'dashboard',
+      builder: (context, state) => const DashboardScreen(),
     ),
     GoRoute(
       path: '/transactions',
