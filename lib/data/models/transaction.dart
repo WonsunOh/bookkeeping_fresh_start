@@ -1,20 +1,27 @@
 // lib/data/models/transaction.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
+import '../../core/enums.dart';
+import 'account.dart';
 import 'journal_entry.dart';
 
+@immutable
 class Transaction {
   final String id;
-  final DateTime date;
   final String description;
+  final DateTime date;
   final List<JournalEntry> entries;
 
-  Transaction({
+  const Transaction({
     required this.id,
-    required this.date,
     required this.description,
+    required this.date,
     required this.entries,
   });
+
+
+ 
 
   Transaction copyWith({
     String? id,
@@ -65,4 +72,26 @@ class Transaction {
       ),
     );
   }
+  EntryScreenType getTransactionType(List<Account> accounts) {
+  final debitEntry = entries.firstWhere((e) => e.type == EntryType.debit);
+  final creditEntry = entries.firstWhere((e) => e.type == EntryType.credit);
+  
+  final fromAcc = accounts.firstWhere((a) => a.id == creditEntry.accountId);
+  final toAcc = accounts.firstWhere((a) => a.id == debitEntry.accountId);
+  
+  // transaction_entry_viewmodel.dart의 initializeForEdit와 동일한 로직 사용
+  if (fromAcc.type == AccountType.asset && toAcc.type == AccountType.asset) {
+    return EntryScreenType.transfer;
+  } else if (fromAcc.type == AccountType.asset && 
+             (toAcc.type == AccountType.expense || toAcc.type == AccountType.liability)) {
+    return EntryScreenType.expense;
+  } else if ((fromAcc.type == AccountType.revenue || fromAcc.type == AccountType.equity) && 
+             toAcc.type == AccountType.asset) {
+    return EntryScreenType.income;
+  } else {
+    return EntryScreenType.expense; // 기본값
+  }
 }
+}
+
+ 

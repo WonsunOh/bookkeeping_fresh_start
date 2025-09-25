@@ -35,7 +35,7 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: SummaryCard(
-                      title: '총수입',
+                      title: '총매출',
                       // 이제 AsyncValue가 아닌 double 값을 직접 전달합니다.
                       amount: summary['revenue'] ?? 0,
                       color: Colors.green.shade100,
@@ -44,7 +44,7 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: SummaryCard(
-                      title: '총지출',
+                      title: '총매입',
                       amount: summary['expense'] ?? 0,
                       color: Colors.red.shade100,
                     ),
@@ -217,7 +217,7 @@ class SummaryCard extends StatelessWidget {
                 child: Text(
                   '${NumberFormat.decimalPattern().format(amount)}원',
                   // 고정된 fontSize를 제거하고 스타일만 지정합니다.
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ),
             ),

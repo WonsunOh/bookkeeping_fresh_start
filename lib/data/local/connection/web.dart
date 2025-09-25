@@ -12,7 +12,9 @@ DatabaseConnection openConnection() {
         driftWorkerUri: Uri.parse('drift_worker.js'),
       );
       if (result.missingFeatures.isNotEmpty && kDebugMode) {
-        print('Using ${result.chosenImplementation} due to unsupported features: ${result.missingFeatures}');
+        if (kDebugMode) {
+          print('Using ${result.chosenImplementation} due to unsupported features: ${result.missingFeatures}');
+        }
       }
       return result.resolvedExecutor;
     }),

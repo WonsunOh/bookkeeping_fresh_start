@@ -1,7 +1,7 @@
 // lib/features/repeating_transactions/viewmodels/repeating_transaction_entry_viewmodel.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/enums.dart';
 import '../../../data/models/account.dart';
 import '../../../data/models/repeating_transaction.dart';
@@ -53,9 +53,12 @@ class RepeatingEntryState {
   }
 }
 
-// ViewModel
-class RepeatingEntryViewModel extends StateNotifier<RepeatingEntryState> {
-  RepeatingEntryViewModel() : super(RepeatingEntryState(nextDueDate: DateTime.now()));
+// ViewModel - 일반 Notifier 사용
+class RepeatingEntryViewModel extends Notifier<RepeatingEntryState> {
+  @override
+  RepeatingEntryState build() {
+    return RepeatingEntryState(nextDueDate: DateTime.now());
+  }
 
   void setDescription(String value) => state = state.copyWith(description: value);
   void setAmount(double value) => state = state.copyWith(amount: value);
@@ -114,9 +117,7 @@ class RepeatingEntryViewModel extends StateNotifier<RepeatingEntryState> {
   }
 }
 
-// --- 👇 [추가] 누락되었던 Provider 선언 코드 ---
-final repeatingEntryProvider =
-    StateNotifierProvider.autoDispose<RepeatingEntryViewModel, RepeatingEntryState>(
-  (ref) => RepeatingEntryViewModel(),
+// Provider - 일반 NotifierProvider 사용 (autoDispose 포함)
+final repeatingEntryProvider = NotifierProvider.autoDispose<RepeatingEntryViewModel, RepeatingEntryState>(
+  RepeatingEntryViewModel.new,
 );
-// ------------------------------------------

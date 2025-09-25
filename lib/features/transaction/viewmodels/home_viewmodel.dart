@@ -1,7 +1,7 @@
 // lib/features/transaction/viewmodels/home_viewmodel.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 홈 화면의 상태를 나타내는 클래스
 @immutable
@@ -26,8 +26,11 @@ class HomeState {
 }
 
 // HomeState를 관리하는 Notifier
-class HomeViewModel extends StateNotifier<HomeState> {
-  HomeViewModel() : super(const HomeState());
+class HomeViewModel extends Notifier<HomeState> {
+  @override
+  HomeState build() {
+    return const HomeState();
+  }
 
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
@@ -43,7 +46,6 @@ class HomeViewModel extends StateNotifier<HomeState> {
 }
 
 // ViewModel을 제공하는 Provider
-final homeViewModelProvider =
-    StateNotifierProvider<HomeViewModel, HomeState>((ref) {
+final homeViewModelProvider = NotifierProvider<HomeViewModel, HomeState>(() {
   return HomeViewModel();
 });

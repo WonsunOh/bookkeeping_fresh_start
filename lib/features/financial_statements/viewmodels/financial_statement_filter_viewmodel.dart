@@ -1,7 +1,7 @@
 // lib/features/financial_statements/viewmodels/financial_statement_filter_viewmodel.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 재무제표 필터 상태를 나타내는 클래스
 @immutable
@@ -32,8 +32,11 @@ class FinancialStatementFilterState {
 }
 
 // 필터 상태를 관리하는 Notifier
-class FinancialStatementFilterViewModel extends StateNotifier<FinancialStatementFilterState> {
-  FinancialStatementFilterViewModel() : super(FinancialStatementFilterState.thisMonth());
+class FinancialStatementFilterViewModel extends Notifier<FinancialStatementFilterState> {
+  @override
+  FinancialStatementFilterState build() {
+    return FinancialStatementFilterState.thisMonth();
+  }
 
   void setDateRange(DateTimeRange newRange) {
     state = state.copyWith(dateRange: newRange);
@@ -41,7 +44,7 @@ class FinancialStatementFilterViewModel extends StateNotifier<FinancialStatement
 }
 
 // ViewModel을 제공하는 Provider
-final financialStatementFilterProvider =
-    StateNotifierProvider<FinancialStatementFilterViewModel, FinancialStatementFilterState>(
-  (ref) => FinancialStatementFilterViewModel(),
-);
+final financialStatementFilterProvider = 
+    NotifierProvider<FinancialStatementFilterViewModel, FinancialStatementFilterState>(() {
+  return FinancialStatementFilterViewModel();
+});

@@ -5,12 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../data/models/account.dart';
 import '../data/models/repeating_transaction.dart';
 import '../data/models/transaction.dart';
+import '../features/admin/views/admin_menu_screen.dart';
+import '../features/admin/views/data_analysis_screen.dart';
+import '../features/admin/views/database_info_screen.dart';
 import '../features/budget/views/budget_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/financial_statements/views/financial_statement_screen.dart';
 import '../features/repeating_transactions/views/add_edit_repeating_transaction_screen.dart';
 import '../features/repeating_transactions/views/repeating_transaction_list_screen.dart';
 import '../features/settings/views/account_management_screen.dart';
+import '../features/settings/views/backup_restore_screen.dart';
+import '../features/settings/views/settings_screen.dart';
 import '../features/settings/widgets/add_account_dialog.dart';
 import '../features/transaction/views/home_screen.dart';
 import '../features/transaction/views/transaction_detail_screen.dart';
@@ -37,15 +42,15 @@ final router = GoRouter(
       builder: (context, state) => const TransactionListScreen(),
     ),
     GoRoute(
-        path: '/transaction/:id', // 👈 경로 매개변수 ':id' 사용
-        name: 'transactionId',
-        builder: (context, state) {
-          // 경로에서 'id' 값을 추출합니다.
-          final transactionId = state.pathParameters['id']!;
-          // 추출한 id를 TransactionDetailScreen에 전달합니다.
-          return TransactionDetailScreen(transactionId: transactionId);
-        },
-      ),
+      path: '/transaction/:id', // 👈 경로 매개변수 ':id' 사용
+      name: 'transactionId',
+      builder: (context, state) {
+        // 경로에서 'id' 값을 추출합니다.
+        final transactionId = state.pathParameters['id']!;
+        // 추출한 id를 TransactionDetailScreen에 전달합니다.
+        return TransactionDetailScreen(transactionId: transactionId);
+      },
+    ),
     GoRoute(
       path: '/entry',
       name: 'entry',
@@ -85,7 +90,7 @@ final router = GoRouter(
         );
       },
     ),
-   
+
     GoRoute(
       path: '/repeating-transactions',
       name: 'repeatingTransactions',
@@ -111,10 +116,35 @@ final router = GoRouter(
         // ----------------------------------------------------------
       },
     ),
-     GoRoute(
+    GoRoute(
       path: '/budget',
       name: 'budget',
       builder: (context, state) => const BudgetScreen(),
+    ),
+    GoRoute(
+      path: '/admin',
+      name: 'admin',
+      builder: (context, state) => const AdminMenuScreen(),
+    ),
+    GoRoute(
+      path: '/admin/database-info',
+      name: 'databaseInfo',
+      builder: (context, state) => const DatabaseInfoScreen(),
+    ),
+    GoRoute(
+      path: '/admin/data-analysis',
+      name: 'dataAnalysis',
+      builder: (context, state) => const DataAnalysisScreen(),
+    ),
+    GoRoute(
+      path: '/backup',
+      name: 'backup',
+      builder: (context, state) => const BackupRestoreScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );

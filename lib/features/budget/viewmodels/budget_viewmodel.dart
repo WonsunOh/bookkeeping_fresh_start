@@ -3,7 +3,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/enums.dart';
 import '../../../data/models/account.dart';
@@ -12,7 +11,6 @@ import '../../../data/repositories/budget_repository.dart';
 import '../../transaction/viewmodels/account_provider.dart';
 import '../../transaction/viewmodels/transaction_viewmodel.dart';
 
-// BudgetState와 BudgetViewModel은 이전과 동일합니다.
 @immutable
 class BudgetState {
   final DateTime selectedDate;
@@ -26,8 +24,11 @@ class BudgetState {
   }
 }
 
-class BudgetViewModel extends StateNotifier<BudgetState> {
-  BudgetViewModel() : super(BudgetState(selectedDate: DateTime.now()));
+class BudgetViewModel extends Notifier<BudgetState> {
+  @override
+  BudgetState build() {
+    return BudgetState(selectedDate: DateTime.now());
+  }
 
   void changeMonth(int monthOffset) {
     final current = state.selectedDate;
@@ -37,8 +38,7 @@ class BudgetViewModel extends StateNotifier<BudgetState> {
   }
 }
 
-final budgetViewModelProvider =
-    StateNotifierProvider<BudgetViewModel, BudgetState>((ref) {
+final budgetViewModelProvider = NotifierProvider<BudgetViewModel, BudgetState>(() {
   return BudgetViewModel();
 });
 
@@ -72,7 +72,7 @@ final monthlyBudgetStatusProvider = Provider.autoDispose<AsyncValue<List<BudgetS
     return const AsyncValue.loading();
   }
 
-  // --- 해결책: 에러 발생 시, 올바른 타입의 AsyncValue.error를 새로 생성하여 반환합니다. ---
+  // 에러 발생 시, 올바른 타입의 AsyncValue.error를 새로 생성하여 반환합니다.
   if (asyncTransactions.hasError) {
     return AsyncValue.error(asyncTransactions.error!, asyncTransactions.stackTrace!);
   }
@@ -82,38 +82,29 @@ final monthlyBudgetStatusProvider = Provider.autoDispose<AsyncValue<List<BudgetS
   if (asyncBudgets.hasError) {
     return AsyncValue.error(asyncBudgets.error!, asyncBudgets.stackTrace!);
   }
-  // ------------------------------------------------------------------------------------
 
-  final allTransactions = asyncTransactions.value!;
-  final allAccounts = asyncAccounts.value!;
+  final transactions = asyncTransactions.value!;
+  final accounts = asyncAccounts.value!;
   final budgets = asyncBudgets.value!;
-  final expenseAccounts = allAccounts.where((a) => a.type == AccountType.expense).toList();
 
-  final monthlyTransactions = allTransactions.where((t) {
-    return t.date.year == budgetState.year && t.date.month == budgetState.month;
+  // 예산 현황 계산 로직 구현
+  final List<BudgetStatus> statusList = accounts.map((account) {
+    final budget = budgets.firstWhereOrNull((b) => b.accountId == account.id);
+    final budgetAmount = budget?.amount ?? 0.0;
+    
+    // 해당 계정의 지출 계산
+    final spentAmount = transactions
+        .where((t) => t.date.year == budgetState.year && t.date.month == budgetState.month)
+        .expand((t) => t.entries)
+        .where((e) => e.accountId == account.id && e.type == EntryType.debit)
+        .fold(0.0, (sum, entry) => sum + entry.amount);
+
+    return BudgetStatus(
+      account: account,
+      budgetAmount: budgetAmount,
+      spentAmount: spentAmount,
+    );
   }).toList();
 
-  final List<BudgetStatus> statusList = [];
-  for (final account in expenseAccounts) {
-    final budget = budgets.firstWhere(
-      (b) => b.accountId == account.id,
-      orElse: () => Budget(id: '', accountId: account.id, year: budgetState.year, month: budgetState.month, amount: 0),
-    );
-
-    double spent = 0;
-    for (final transaction in monthlyTransactions) {
-      final debitEntry = transaction.entries.firstWhereOrNull((e) => e.type == EntryType.debit);
-      if (debitEntry != null && debitEntry.accountId == account.id) {
-        spent += debitEntry.amount;
-      }
-    }
-
-    statusList.add(BudgetStatus(
-      account: account,
-      budgetAmount: budget.amount,
-      spentAmount: spent,
-    ));
-  }
-  
   return AsyncValue.data(statusList);
 });

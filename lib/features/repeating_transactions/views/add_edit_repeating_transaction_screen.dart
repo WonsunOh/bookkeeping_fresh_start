@@ -100,6 +100,7 @@ class _AddEditRepeatingTransactionScreenState
     final entryViewModel = ref.read(repeatingEntryProvider.notifier);
     
     final entryState = ref.watch(repeatingEntryProvider);
+    
     // 컨트롤러와 ViewModel 상태 동기화
     final formattedAmount = NumberFormat.decimalPattern('ko_KR').format(entryState.amount);
     if (_amountController.text != formattedAmount) {
@@ -120,56 +121,64 @@ class _AddEditRepeatingTransactionScreenState
         appBar: AppBar(title: const Text('오류')),
         body: Center(child: Text('계정 정보를 불러오는 데 실패했습니다: $err')),
       ),
-      data: (accounts) {
-        // --- 👇 여기가 핵심 수정 부분입니다 ---
+      data: (allAccounts) {
         if (!_isInitialized) {
-          // Future.microtask를 사용하여 build가 끝난 직후에 상태를 변경합니다.
           Future.microtask(() {
             if (_isEditMode) {
-              entryViewModel.initializeForEdit(widget.rule!, accounts);
+              entryViewModel.initializeForEdit(widget.rule!, allAccounts);
             } else if (widget.transaction != null) {
-              entryViewModel.initializeFromTransaction(widget.transaction!, accounts);
+              entryViewModel.initializeFromTransaction(widget.transaction!, allAccounts);
             }
           });
           _isInitialized = true;
         }
-        // ------------------------------------
 
-        final assetAccounts = accounts.where((a) => a.type == AccountType.asset).toList();
-        final expenseAccounts = accounts.where((a) => a.type == AccountType.expense).toList();
-        final revenueAccounts = accounts.where((a) => a.type == AccountType.revenue).toList();
-        final equityAccounts = accounts.where((a) => a.type == AccountType.equity).toList();
-
-        final List<Account> fromAccounts;
+        // ✅ 거래내역과 같은 로직으로 변경
+        final List<AccountType> fromAccountTypes;
         final String fromAccountLabel;
-        final List<Account> toAccounts;
+        final List<AccountType> toAccountTypes;
         final String toAccountLabel;
 
-        if (entryState.entryType == EntryScreenType.income) {
-          fromAccounts = [...revenueAccounts, ...equityAccounts];
-          fromAccountLabel = '어디서 (수입/자본)';
-          toAccounts = assetAccounts;
-          toAccountLabel = '어디로 (자산)';
-        } else {
-          fromAccounts = assetAccounts;
-          fromAccountLabel = '어디서 (자산)';
-          if (entryState.entryType == EntryScreenType.expense) {
-            toAccounts = expenseAccounts;
-            toAccountLabel = '무엇을 위해 (비용)';
-          } else {
-            toAccounts = assetAccounts;
-            toAccountLabel = '어디로 (자산)';
-          }
+        switch (entryState.entryType) {
+          case EntryScreenType.income:
+            fromAccountTypes = [AccountType.revenue, AccountType.equity, AccountType.liability, AccountType.expense];
+            fromAccountLabel = '어디서 (수익/자본/부채/비용)';
+            toAccountTypes = [AccountType.asset, AccountType.liability];
+            toAccountLabel = '어디로 (자산/부채)';
+            break;
+          case EntryScreenType.expense:
+            fromAccountTypes = [AccountType.asset, AccountType.liability];
+            fromAccountLabel = '어디서 (자산/부채)';
+            toAccountTypes = [AccountType.expense, AccountType.equity, AccountType.liability];
+            toAccountLabel = '무엇을 위해 (비용/자본/부채)';
+            break;
+          case EntryScreenType.transfer:
+            fromAccountTypes = [AccountType.asset];
+            fromAccountLabel = '어디서 (자산)';
+            toAccountTypes = [AccountType.asset, AccountType.liability];
+            toAccountLabel = '어디로 (자산/부채)';
+            break;
         }
 
-        final validFromAccount =
-            entryState.fromAccount != null && fromAccounts.contains(entryState.fromAccount)
-                ? entryState.fromAccount
-                : null;
-        final validToAccount =
-            entryState.toAccount != null && toAccounts.contains(entryState.toAccount)
-                ? entryState.toAccount
-                : null;
+        // ✅ 계정 유형별로 필터링된 계정 목록
+        final fromAccountType = entryState.fromAccount?.type;
+        final toAccountType = entryState.toAccount?.type;
+
+        final fromAccounts = fromAccountType == null
+            ? <Account>[]
+            : allAccounts.where((a) => a.type == fromAccountType).toList();
+        final toAccounts = toAccountType == null
+            ? <Account>[]
+            : allAccounts.where((a) => a.type == toAccountType).toList();
+
+        // ✅ 유효성 체크
+        final validFromAccount = entryState.fromAccount != null && fromAccounts.contains(entryState.fromAccount)
+            ? entryState.fromAccount
+            : null;
+        final validToAccount = entryState.toAccount != null && toAccounts.contains(entryState.toAccount)
+            ? entryState.toAccount
+            : null;
+
         final dateFormat = DateFormat('yyyy.MM.dd');
 
         return ResponsiveLayout(
@@ -194,6 +203,7 @@ class _AddEditRepeatingTransactionScreenState
                     },
                   ),
                   const SizedBox(height: 24),
+                  
                   TextFormField(
                     controller: _memoController,
                     decoration: const InputDecoration(
@@ -201,34 +211,89 @@ class _AddEditRepeatingTransactionScreenState
                     onChanged: (value) => entryViewModel.setDescription(value),
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<Account>(
-                    value: validFromAccount,
-                    decoration: InputDecoration(
-                        labelText: fromAccountLabel,
-                        border: const OutlineInputBorder()),
-                    items: fromAccounts
-                        .map((account) => DropdownMenuItem(
-                            value: account, child: Text(account.name)))
-                        .toList(),
-                    onChanged: (account) {
-                      if (account != null) entryViewModel.setFromAccount(account);
-                    },
+
+                  // ✅ 거래내역과 같은 형식: From 계정 선택 (유형 + 계정과목)
+                  Text(fromAccountLabel, style: Theme.of(context).textTheme.titleSmall),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<AccountType>(
+                          value: fromAccountTypes.contains(fromAccountType) ? fromAccountType : null,
+                          hint: const Text('유형'),
+                          items: fromAccountTypes.toSet().map((type) => 
+                            DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))
+                          ).toList(),
+                          onChanged: (type) {
+                            if (type != null) {
+                              // 유형이 바뀌면 해당 유형의 첫 번째 계정을 자동 선택
+                              final accountsOfType = allAccounts.where((a) => a.type == type).toList();
+                              if (accountsOfType.isNotEmpty) {
+                                entryViewModel.setFromAccount(accountsOfType.first);
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: DropdownButtonFormField<Account>(
+                          value: validFromAccount,
+                          hint: const Text('계정과목'),
+                          items: fromAccounts.map((account) => 
+                            DropdownMenuItem(value: account, child: Text(account.name))
+                          ).toList(),
+                          onChanged: (Account? newAccount) {
+                            if (newAccount != null) entryViewModel.setFromAccount(newAccount);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<Account>(
-                    value: validToAccount,
-                    decoration: InputDecoration(
-                        labelText: toAccountLabel,
-                        border: const OutlineInputBorder()),
-                    items: toAccounts
-                        .map((account) => DropdownMenuItem(
-                            value: account, child: Text(account.name)))
-                        .toList(),
-                    onChanged: (account) {
-                      if (account != null) entryViewModel.setToAccount(account);
-                    },
+
+                  // ✅ 거래내역과 같은 형식: To 계정 선택 (유형 + 계정과목)
+                  Text(toAccountLabel, style: Theme.of(context).textTheme.titleSmall),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<AccountType>(
+                          value: toAccountTypes.contains(toAccountType) ? toAccountType : null,
+                          hint: const Text('유형'),
+                          items: toAccountTypes.toSet().map((type) => 
+                            DropdownMenuItem(value: type, child: Text(_getAccountTypeLabel(type)))
+                          ).toList(),
+                          onChanged: (type) {
+                            if (type != null) {
+                              // 유형이 바뀌면 해당 유형의 첫 번째 계정을 자동 선택
+                              final accountsOfType = allAccounts.where((a) => a.type == type).toList();
+                              if (accountsOfType.isNotEmpty) {
+                                entryViewModel.setToAccount(accountsOfType.first);
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 3,
+                        child: DropdownButtonFormField<Account>(
+                          value: validToAccount,
+                          hint: const Text('계정과목'),
+                          items: toAccounts.map((account) => 
+                            DropdownMenuItem(value: account, child: Text(account.name))
+                          ).toList(),
+                          onChanged: (account) {
+                            if (account != null) entryViewModel.setToAccount(account);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
+
                   TextFormField(
                     controller: _amountController,
                     decoration: const InputDecoration(
@@ -295,6 +360,22 @@ class _AddEditRepeatingTransactionScreenState
         );
       },
     );
+  }
+
+  // ✅ 계정 유형 라벨 함수 추가 (거래내역과 동일)
+  String _getAccountTypeLabel(AccountType type) {
+    switch (type) {
+      case AccountType.asset:
+        return '자산';
+      case AccountType.liability:
+        return '부채';
+      case AccountType.equity:
+        return '자본';
+      case AccountType.revenue:
+        return '수익';
+      case AccountType.expense:
+        return '비용';
+    }
   }
 
   String _getFrequencyLabel(Frequency freq) {

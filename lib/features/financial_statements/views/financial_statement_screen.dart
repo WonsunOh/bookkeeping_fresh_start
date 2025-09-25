@@ -138,7 +138,7 @@ class FinancialStatementScreen extends ConsumerWidget {
                           );
                         }
                         return SizedBox(
-                          height: 200,
+                          height: 250,
                           child: PieChart(
                             PieChartData(
                               sections: chartData.map((data) {
@@ -167,26 +167,39 @@ class FinancialStatementScreen extends ConsumerWidget {
                     // 범례 (Legend)
                     asyncExpenseChartData.when(
                       data: (chartData) {
-                        // 데이터가 있을 때만 범례를 보여주는 Column 위젯을 반환합니다.
-                        return Column(
-                          children: chartData.map((data) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4.0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 16,
-                                    height: 16,
-                                    color: _getColorFor(data.title),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(data.title),
-                                  const Spacer(),
-                                  Text(currencyFormat.format(data.value.toInt())),
-                                ],
-                            ),
-                          );
-                        }).toList(),
+    if (chartData.isEmpty) return const SizedBox();
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: chartData.take(5).map((data) => // 상위 5개만 표시
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getColorFor(data.title).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _getColorFor(data.title).withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _getColorFor(data.title),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${data.title}: ${NumberFormat.decimalPattern('ko_KR').format(data.value)}원',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ).toList(),
                       );
                       },
                        loading: () => const SizedBox.shrink(),
@@ -202,30 +215,50 @@ class FinancialStatementScreen extends ConsumerWidget {
     );
   }
 
-  // 항목 이름에 따라 일관된 색상을 반환하는 헬퍼 함수
-  Color _getColorFor(String title) {
-    final hash = title.hashCode;
-    final r = (hash & 0xFF0000) >> 16;
-    final g = (hash & 0x00FF00) >> 8;
-    final b = hash & 0x0000FF;
-    return Color.fromRGBO(r, g, b, 1);
-  }
+  // 파일 맨 하단(클래스 외부)에 추가
+Color _getColorFor(String accountName) {
+  final colors = [
+    Colors.blue.shade600,
+    Colors.red.shade600, 
+    Colors.green.shade600,
+    Colors.orange.shade600,
+    Colors.purple.shade600,
+    Colors.teal.shade600,
+    Colors.pink.shade600,
+    Colors.brown.shade600,
+    Colors.indigo.shade600,
+    Colors.cyan.shade600,
+  ];
+  return colors[accountName.hashCode.abs() % colors.length];
+}
+
   
 
-  Widget _buildFinancialRow(String title, String value, {bool isTotal = false}) {
-    final style = TextStyle(
-      fontSize: 16,
-      fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-    );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: style),
-          Text('$value 원', style: style),
-        ],
-      ),
-    );
-  }
+  // 재무 항목 행을 생성하는 헬퍼 함수도 추가
+Widget _buildFinancialRow(String label, String value, {bool isTotal = false}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            fontSize: isTotal ? 16 : 14,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: isTotal ? 16 : 14,
+            color: isTotal ? Colors.blue.shade700 : null,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  
 }

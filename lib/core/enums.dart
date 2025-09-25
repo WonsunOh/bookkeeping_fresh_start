@@ -28,3 +28,15 @@ enum Frequency {
   quarterly,
   yearly,
 }
+
+extension AccountTypeExtension on AccountType {
+  String get displayName {
+    switch (this) {
+      case AccountType.asset: return '자산';
+      case AccountType.liability: return '부채';
+      case AccountType.equity: return '자본';
+      case AccountType.revenue: return '수익';
+      case AccountType.expense: return '비용';
+    }
+  }
+}
