@@ -8,6 +8,7 @@ import '../data/models/transaction.dart';
 import '../features/admin/views/admin_menu_screen.dart';
 import '../features/admin/views/data_analysis_screen.dart';
 import '../features/admin/views/database_info_screen.dart';
+import '../features/auth/views/biometric_auth_screen.dart';
 import '../features/budget/views/budget_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/financial_statements/views/financial_statement_screen.dart';
@@ -21,11 +22,20 @@ import '../features/transaction/views/home_screen.dart';
 import '../features/transaction/views/transaction_detail_screen.dart';
 import '../features/transaction/views/transaction_entry_screen.dart';
 import '../features/transaction/views/transaction_list_screen.dart';
+import '../main.dart';
 // ... 다른 import들
 
 final router = GoRouter(
-  initialLocation: '/',
+ initialLocation: '/',
   routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const AppStartupWrapper(),
+    ),
+    GoRoute(
+      path: '/biometric-auth',
+      builder: (context, state) => const BiometricAuthScreen(),
+    ),
     GoRoute(
       path: '/',
       name: 'home',

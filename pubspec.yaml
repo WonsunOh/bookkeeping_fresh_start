@@ -66,8 +66,10 @@ dependencies:
    # 생체 인증 패키지 추가
   local_auth: ^2.1.8
   local_auth_android: ^1.0.38
-  local_auth_ios: ^1.1.7
   local_auth_windows: ^1.0.11
+
+   # 설정 저장을 위한 패키지
+  shared_preferences: ^2.5.3
   
 
 dev_dependencies:
