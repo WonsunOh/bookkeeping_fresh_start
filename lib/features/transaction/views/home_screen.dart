@@ -462,22 +462,30 @@ class HomeScreen extends ConsumerWidget {
               '지출 기록',
               Icons.trending_down,
               Colors.red,
-              () => context.push('/entry'),
-            ),
+              () {
+              // 지출 화면으로 이동하면서 초기 탭을 0(지출)으로 설정
+              context.push('/entry');
+              // 또는 extra로 초기 타입 전달
+            },
+          ),
             _buildQuickActionCard(
               context,
               '수입 기록',
               Icons.trending_up,
               Colors.green,
-              () => context.push('/entry'),
-            ),
+              () {
+              context.push('/entry', extra: <String, dynamic>{'initialTab': 1});
+            },
+          ),
             _buildQuickActionCard(
               context,
               '계좌 이체',
               Icons.swap_horiz,
               Colors.blue,
-              () => context.push('/entry'),
-            ),
+              () {
+              context.push('/entry', extra: <String, dynamic>{'initialTab': 2});
+            },
+          ),
             _buildQuickActionCard(
               context,
               '예산 확인',

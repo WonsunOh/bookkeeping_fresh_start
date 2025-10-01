@@ -17,6 +17,51 @@ final repeatingTransactionsStreamProvider = StreamProvider((ref) {
 class RepeatingTransactionListScreen extends ConsumerWidget {
   const RepeatingTransactionListScreen({super.key});
 
+  Future<void> _deleteRepeatingTransaction(
+    BuildContext context,
+    WidgetRef ref,
+    String id,
+    String description,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('반복 거래 삭제'),
+        content: Text('\'$description\' 반복 거래를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final repository = ref.read(repeatingTransactionRepositoryProvider);
+        await repository.delete(id);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('반복 거래가 삭제되었습니다.')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('삭제 실패: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncRules = ref.watch(repeatingTransactionsStreamProvider);
@@ -45,7 +90,27 @@ class RepeatingTransactionListScreen extends ConsumerWidget {
                   title: Text(rule.description),
                   subtitle: Text(
                       '다음 예정일: ${DateFormat('yyyy.MM.dd').format(rule.nextDueDate)}'),
-                  trailing: const Icon(Icons.edit),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => context.push(
+                          '/repeating-transactions/entry',
+                          extra: rule,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteRepeatingTransaction(
+                          context,
+                          ref,
+                          rule.id,
+                          rule.description,
+                        ),
+                      ),
+                    ],
+                  ),
                   onTap: () => context.push('/repeating-transactions/entry', extra: rule),
                 );
               },

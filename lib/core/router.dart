@@ -55,24 +55,41 @@ final router = GoRouter(
       path: '/transaction/:id', // 👈 경로 매개변수 ':id' 사용
       name: 'transactionId',
       builder: (context, state) {
-        // 경로에서 'id' 값을 추출합니다.
         final transactionId = state.pathParameters['id']!;
-        // 추출한 id를 TransactionDetailScreen에 전달합니다.
         return TransactionDetailScreen(transactionId: transactionId);
       },
     ),
+    // 수정 화면 라우트 추가
+GoRoute(
+  path: '/transaction/:id/edit',
+  name: 'transactionEdit',
+  builder: (context, state) {
+    final transaction = state.extra as Transaction?;
+    return TransactionEntryScreen(transaction: transaction);
+  },
+),
+
     GoRoute(
       path: '/entry',
       name: 'entry',
       builder: (context, state) {
-        // --- 해결책: state.extra에서 transaction 객체를 가져옵니다. ---
-        // context.go('/entry', extra: transaction)으로 전달된 객체입니다.
-        // 추가 모드일 때는 null이 될 수 있으므로 nullable(?)로 받습니다.
-        final transaction = state.extra as Transaction?;
-        // --------------------------------------------------------
-        return TransactionEntryScreen(transaction: transaction);
-      },
-    ),
+    final extra = state.extra;
+    
+    // Transaction 객체인 경우 (수정 모드)
+    if (extra is Transaction) {
+      return TransactionEntryScreen(transaction: extra);
+    } 
+    // Map인 경우 (초기 탭 지정)
+    else if (extra is Map<String, dynamic>) {
+      final initialTab = extra['initialTab'] as int?;
+      return TransactionEntryScreen(initialTab: initialTab);
+    }
+    // 기본 (새 거래 추가)
+    else {
+      return const TransactionEntryScreen();
+    }
+  },
+),
     GoRoute(
       path: '/financial-statements',
       name: 'financialStatements',

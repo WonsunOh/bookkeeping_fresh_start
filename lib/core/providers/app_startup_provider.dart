@@ -1,4 +1,5 @@
 // lib/core/providers/app_startup_provider.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -8,6 +9,11 @@ import 'biometric_provider.dart';
 // 앱 시작 시 생체 인증 필요 여부를 체크하는 Provider
 final shouldShowBiometricProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
+  // 웹에서는 무조건 false 반환
+  if (kIsWeb) {
+    debugPrint('Web platform, skipping biometric');
+    return false;
+  }
   final biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
 
   debugPrint('Biometric enabled in settings: $biometricEnabled');

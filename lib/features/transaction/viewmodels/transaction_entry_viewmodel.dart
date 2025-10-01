@@ -143,51 +143,38 @@ class TransactionEntryViewModel extends Notifier<TransactionEntryState> {
 
   // 수정 모드에서 기존 거래 데이터로 초기화
   void initializeForEdit(Transaction transaction, List<Account> allAccounts) {
-    if (transaction.entries.isEmpty) return;
+  debugPrint('=== initializeForEdit 시작 ===');
+  
+  if (transaction.entries.isEmpty) return;
 
-    try {
-      final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
-      final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
+  try {
+    final creditEntry = transaction.entries.firstWhere((e) => e.type == EntryType.credit);
+    final debitEntry = transaction.entries.firstWhere((e) => e.type == EntryType.debit);
 
-      final fromAccount = allAccounts.firstWhere((a) => a.id == creditEntry.accountId);
-      final toAccount = allAccounts.firstWhere((a) => a.id == debitEntry.accountId);
+    final fromAccount = allAccounts.firstWhere((a) => a.id == creditEntry.accountId);
+    final toAccount = allAccounts.firstWhere((a) => a.id == debitEntry.accountId);
 
-      // 거래 유형 판단
-      EntryScreenType entryType;
-      if (fromAccount.type == AccountType.asset && toAccount.type == AccountType.expense) {
-        entryType = EntryScreenType.expense;
-      } else if (fromAccount.type == AccountType.revenue && toAccount.type == AccountType.asset) {
-        entryType = EntryScreenType.income;
-      } else if (fromAccount.type == AccountType.asset && toAccount.type == AccountType.asset) {
-        entryType = EntryScreenType.transfer;
-      } else {
-        // 기본값
-        entryType = EntryScreenType.expense;
-      }
+    // 저장된 entryType이 있으면 사용, 없으면 getTransactionType로 추측
+    final entryType = transaction.entryType ?? transaction.getTransactionType(allAccounts);
+    
+    debugPrint('사용할 entryType: $entryType');
 
-      state = TransactionEntryState(
-        date: transaction.date,
-        amount: debitEntry.amount,
-        description: transaction.description,
-        entryType: entryType,
-        fromAccountType: fromAccount.type,
-        toAccountType: toAccount.type,
-        fromAccountId: fromAccount.id,
-        toAccountId: toAccount.id,
-      );
-    } catch (e) {
-      // 에러 발생 시 기본값으로 초기화
-      debugPrint('거래 초기화 중 오류: $e');
-      state = TransactionEntryState(
-        date: transaction.date,
-        amount: 0.0,
-        description: transaction.description,
-        entryType: EntryScreenType.expense,
-        fromAccountType: AccountType.asset,
-        toAccountType: AccountType.expense,
-      );
-    }
+    state = TransactionEntryState(
+      date: transaction.date,
+      amount: debitEntry.amount,
+      description: transaction.description,
+      entryType: entryType,
+      fromAccountType: fromAccount.type,
+      toAccountType: toAccount.type,
+      fromAccountId: fromAccount.id,
+      toAccountId: toAccount.id,
+    );
+    
+    debugPrint('=== initializeForEdit 완료 ===');
+  } catch (e) {
+    debugPrint('=== 에러 발생: $e ===');
   }
+}
 }
 // Provider 정의
 final transactionEntryProvider = NotifierProvider.autoDispose<TransactionEntryViewModel, TransactionEntryState>(() {

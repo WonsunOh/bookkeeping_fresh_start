@@ -22,7 +22,12 @@ import '../../../data/repositories/transaction_repository.dart';
 
 class TransactionEntryScreen extends ConsumerStatefulWidget {
   final Transaction? transaction;
-  const TransactionEntryScreen({super.key, this.transaction});
+  final int? initialTab;
+  const TransactionEntryScreen({
+    super.key,
+    this.transaction,
+    this.initialTab, // 추가
+  });
 
   @override
   ConsumerState<TransactionEntryScreen> createState() => _TransactionEntryScreenState();
@@ -44,9 +49,24 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
 
   @override
   void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+  super.initState();
+  _tabController = TabController(
+    length: 3, 
+    vsync: this,
+    initialIndex: _isEditMode ? 0 : (widget.initialTab ?? 0), 
+  );
+
+   debugPrint('TabController initialIndex: ${_tabController.index}');
+  
+   // initialTab이 있으면 화면이 빌드된 후 탭 이동
+  if (widget.initialTab != null && widget.initialTab! > 0) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _tabController.index != widget.initialTab) {
+        _tabController.animateTo(widget.initialTab!);
+      }
+    });
   }
+}
 
   @override
   void dispose() {
@@ -78,67 +98,89 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
     );
   }
 
-  Widget _buildEntryScreen(
-    BuildContext context,
-    TransactionEntryState entryState,
-    TransactionEntryViewModel entryViewModel,
-    List<Account> allAccounts,
-  ) {
-    // 초기화
-    if (!_isInitialized) {
-      Future.microtask(() {
-        if (_isEditMode) {
-          entryViewModel.initializeForEdit(widget.transaction!, allAccounts);
-        } else {
-          entryViewModel.setEntryType(EntryScreenType.expense);
-        }
-      });
-      _isInitialized = true;
-    }
+ Widget _buildEntryScreen(
+  BuildContext context,
+  TransactionEntryState entryState,
+  TransactionEntryViewModel entryViewModel,
+  List<Account> allAccounts,
+) {
+  // 초기화
+  if (!_isInitialized) {
+    Future.microtask(() {
+      if (_isEditMode) {
+        entryViewModel.initializeForEdit(widget.transaction!, allAccounts);
+      } else {
+        // initialTab이 있으면 해당 타입으로 설정
+        final types = [EntryScreenType.expense, EntryScreenType.income, EntryScreenType.transfer];
+        final initialType = widget.initialTab != null && widget.initialTab! < 3
+            ? types[widget.initialTab!]
+            : EntryScreenType.expense;
+        entryViewModel.setEntryType(initialType);
+      }
+    });
+    _isInitialized = true;
+  }
 
-    return ResponsiveLayout(
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(_isEditMode ? '거래 수정' : '거래 기록'),
-          bottom: TabBar(
-            controller: _tabController,
-            onTap: (index) {
-              final types = [EntryScreenType.expense, EntryScreenType.income, EntryScreenType.transfer];
-              entryViewModel.setEntryType(types[index]);
-            },
-            tabs: const [
-              Tab(text: '지출', icon: Icon(Icons.trending_down, size: 20)),
-              Tab(text: '수입', icon: Icon(Icons.trending_up, size: 20)),
-              Tab(text: '이체', icon: Icon(Icons.swap_horiz, size: 20)),
-            ],
-          ),
-          actions: [
-            if (_isEditMode)
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: _showDeleteDialog,
-                tooltip: '삭제',
-              ),
+  // 수정 모드일 때만 탭 업데이트 (초기화와 별도로 처리)
+  if (_isEditMode) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        int tabIndex = 0;
+        switch (entryState.entryType) {
+          case EntryScreenType.expense:
+            tabIndex = 0;
+            break;
+          case EntryScreenType.income:
+            tabIndex = 1;
+            break;
+          case EntryScreenType.transfer:
+            tabIndex = 2;
+            break;
+        }
+        if (_tabController.index != tabIndex) {
+          _tabController.animateTo(tabIndex);
+        }
+      }
+    });
+  }
+  return ResponsiveLayout(
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(_isEditMode ? '거래 수정' : '거래 기록'),
+        bottom: TabBar(
+          controller: _tabController,
+          onTap: (index) {
+            final types = [EntryScreenType.expense, EntryScreenType.income, EntryScreenType.transfer];
+            entryViewModel.setEntryType(types[index]);
+          },
+          tabs: const [
+            Tab(text: '지출', icon: Icon(Icons.trending_down, size: 20)),
+            Tab(text: '수입', icon: Icon(Icons.trending_up, size: 20)),
+            Tab(text: '이체', icon: Icon(Icons.swap_horiz, size: 20)),
           ],
         ),
-        body: _isLoading
-            ? const ImprovedLoadingWidget(message: '거래를 저장하는 중...')
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildEntryForm(context, entryState, entryViewModel, allAccounts),
-                  _buildEntryForm(context, entryState, entryViewModel, allAccounts),
-                  _buildEntryForm(context, entryState, entryViewModel, allAccounts),
-                ],
-              ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _isLoading ? null : () => _saveTransaction(entryState, allAccounts),
-          icon: Icon(_isEditMode ? Icons.save : Icons.check),
-          label: Text(_isEditMode ? '수정' : '저장'),
-        ),
+        actions: [
+          if (_isEditMode)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _showDeleteDialog,
+              tooltip: '삭제',
+            ),
+        ],
       ),
-    );
-  }
+      body: _isLoading
+          ? const ImprovedLoadingWidget(message: '거래를 저장하는 중...')
+          : _buildEntryForm(context, entryState, entryViewModel, allAccounts),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _isLoading ? null : () => _saveTransaction(entryState, allAccounts),
+        icon: Icon(_isEditMode ? Icons.save : Icons.check),
+        label: Text(_isEditMode ? '수정' : '저장'),
+      ),
+    ),
+  );
+}
+
+
 
   Widget _buildEntryForm(
     BuildContext context,
@@ -358,16 +400,20 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
               children: [
                 const Icon(Icons.calendar_today),
                 const SizedBox(width: 12),
-                Text(
-                  KoreanDateFormatter.formatDateWithDay(entryState.date),
-                  style: Theme.of(context).textTheme.bodyLarge,
+                Expanded(
+                  child: Text(
+                    KoreanDateFormatter.formatDateWithDay(entryState.date),
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+               const SizedBox(width: 8),
                 Text(
                   KoreanDateFormatter.formatRelative(entryState.date),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -378,77 +424,83 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
   }
 
   Widget _buildAccountSection(
-    BuildContext context, {
-    required String title,
-    required List<AccountType> accountTypes,
-    required AccountType? selectedType,
-    required List<Account> accounts,
-    required Account? selectedAccount,
-    required Function(AccountType) onTypeChanged,
-    required Function(Account?) onAccountChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+  BuildContext context, {
+  required String title,
+  required List<AccountType> accountTypes,
+  required AccountType? selectedType,
+  required List<Account> accounts,
+  required Account? selectedAccount,
+  required Function(AccountType) onTypeChanged,
+  required Function(Account?) onAccountChanged,
+}) {
+  // 중복 제거
+  final uniqueAccountTypes = accountTypes.toSet().toList();
+  
+  // selectedType이 리스트에 없으면 null로 설정
+  final validSelectedType = uniqueAccountTypes.contains(selectedType) ? selectedType : null;
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<AccountType>(
+              value: validSelectedType, // 수정
+              decoration: const InputDecoration(
+                labelText: '계정 유형',
+                border: OutlineInputBorder(),
+              ),
+              items: uniqueAccountTypes.map((type) => DropdownMenuItem( // 수정
+                value: type,
+                child: Text(_getAccountTypeDisplayName(type)),
+              )).toList(),
+              onChanged: (type) {
+                if (type != null) onTypeChanged(type);
+              },
+              validator: (value) {
+                if (value == null) {
+                  return '계정 유형을 선택해주세요';
+                }
+                return null;
+              },
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<AccountType>(
-                value: selectedType,
-                decoration: const InputDecoration(
-                  labelText: '계정 유형',
-                  border: OutlineInputBorder(),
-                ),
-                items: accountTypes.map((type) => DropdownMenuItem(
-                  value: type,
-                  child: Text(_getAccountTypeDisplayName(type)),
-                )).toList(),
-                onChanged: (type) {
-                  if (type != null) onTypeChanged(type);
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return '계정 유형을 선택해주세요';
-                  }
-                  return null;
-                },
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: DropdownButtonFormField<Account>(
+              value: selectedAccount,
+              decoration: const InputDecoration(
+                labelText: '계정과목',
+                border: OutlineInputBorder(),
               ),
+              items: accounts.map((account) => DropdownMenuItem(
+                value: account,
+                child: Text(account.name),
+              )).toList(),
+              onChanged: onAccountChanged,
+              validator: (value) {
+                if (value == null) {
+                  return '계정과목을 선택해주세요';
+                }
+                return null;
+              },
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 3,
-              child: DropdownButtonFormField<Account>(
-                value: selectedAccount,
-                decoration: const InputDecoration(
-                  labelText: '계정과목',
-                  border: OutlineInputBorder(),
-                ),
-                items: accounts.map((account) => DropdownMenuItem(
-                  value: account,
-                  child: Text(account.name),
-                )).toList(),
-                onChanged: onAccountChanged,
-                validator: (value) {
-                  if (value == null) {
-                    return '계정과목을 선택해주세요';
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _buildMemoField(BuildContext context, TransactionEntryViewModel entryViewModel) {
     return Column(
@@ -502,7 +554,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
       case EntryScreenType.income:
         return [AccountType.asset, AccountType.liability];
       case EntryScreenType.expense:
-        return [AccountType.expense, AccountType.equity];
+        return [AccountType.expense, AccountType.equity, AccountType.liability];
       case EntryScreenType.transfer:
         return [AccountType.asset, AccountType.liability];
     }
@@ -524,7 +576,7 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
       case EntryScreenType.income:
         return '어디로 (자산/부채)';
       case EntryScreenType.expense:
-        return '무엇을 위해 (비용/자본)';
+        return '무엇을 위해 (비용/부채/자본)';
       case EntryScreenType.transfer:
         return '어디로 (자산/부채)';
     }
@@ -563,87 +615,106 @@ class _TransactionEntryScreenState extends ConsumerState<TransactionEntryScreen>
   }
 
   Future<void> _saveTransaction(TransactionEntryState entryState, List<Account> allAccounts) async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
 
-    if (entryState.fromAccountId == null || entryState.toAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 계정과목을 선택해주세요')),
+  if (entryState.fromAccountId == null || entryState.toAccountId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('모든 계정과목을 선택해주세요')),
+    );
+    return;
+  }
+
+  if (_isLoading) {
+    return;
+  }
+
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    final transactionRepository = ref.read(transactionRepositoryProvider);
+    
+    final entries = [
+      JournalEntry(
+        accountId: entryState.fromAccountId!,
+        type: EntryType.credit,
+        amount: entryState.amount,
+      ),
+      JournalEntry(
+        accountId: entryState.toAccountId!,
+        type: EntryType.debit,
+        amount: entryState.amount,
+      ),
+    ];
+    
+    if (_isEditMode) {
+      final updatedTransaction = Transaction(
+        id: widget.transaction!.id,
+        date: entryState.date,
+        description: entryState.description,
+        entries: entries,
+        entryType: entryState.entryType,
       );
-      return;
+      await transactionRepository.updateTransaction(updatedTransaction);
+    } else {
+      final transaction = Transaction(
+        id: const Uuid().v4(),
+        date: entryState.date,
+        description: entryState.description,
+        entries: entries,
+        entryType: entryState.entryType,
+      );
+      await transactionRepository.addTransaction(transaction);
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // ❌ 오류 부분: transactionProvider는 StreamProvider라서 notifier가 없음
-      // ✅ 해결: TransactionRepository를 직접 사용
-      final transactionRepository = ref.read(transactionRepositoryProvider);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
       
-      // ❌ 오류 부분: JournalEntry에 id 파라미터가 없음
-      // ✅ 해결: id 파라미터 제거
-      final entries = [
-        JournalEntry(
-          accountId: entryState.fromAccountId!,
-          type: EntryType.credit,
-          amount: entryState.amount,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isEditMode ? '거래가 수정되었습니다' : '거래가 저장되었습니다'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
         ),
-        JournalEntry(
-          accountId: entryState.toAccountId!,
-          type: EntryType.debit,
-          amount: entryState.amount,
-        ),
-      ];
+      );
       
-      if (_isEditMode) {
-        // 수정 로직
-        final updatedTransaction = Transaction(
-          id: widget.transaction!.id,
-          date: entryState.date,
-          description: entryState.description,
-          entries: entries,
-        );
-        await transactionRepository.updateTransaction(updatedTransaction);
-      } else {
-        // 새 거래 추가
-        final transaction = Transaction(
-          id: const Uuid().v4(),
-          date: entryState.date,
-          description: entryState.description,
-          entries: entries,
-        );
-        await transactionRepository.addTransaction(transaction);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEditMode ? '거래가 수정되었습니다' : '거래가 저장되었습니다'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('저장 중 오류가 발생했습니다: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+   // pop할 때 true 전달 (수정 완료 신호)
+  if (Navigator.of(context).canPop()) {
+    Navigator.of(context).pop(true);
+  } else if (context.canPop()) {
+    context.pop(true);
+  } else {
+    context.go('/home');
+  }
+}
+    
+  } catch (e, stackTrace) {
+    print('=== 에러 발생 ===');
+    print('에러: $e');
+    print('스택트레이스: $stackTrace');
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('저장 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+  
+  print('=== _saveTransaction 끝 ===');
+}
 
   Future<void> _showDeleteDialog() async {
     final result = await showDialog<bool>(

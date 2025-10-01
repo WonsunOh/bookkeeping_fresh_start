@@ -49,12 +49,17 @@ class TransactionDetailScreen extends ConsumerWidget {
             // 수정 버튼
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () {
-                asyncTransaction.whenData((transaction) {
-                  context.go('/entry', extra: transaction);
-                });
-              },
-            ),
+              onPressed: () async {
+                final transaction = asyncTransaction.value;
+    if (transaction != null) {
+      final result = await context.push('/entry', extra: transaction);
+      // 수정 완료 후 돌아오면 refresh
+      if (result == true && context.mounted) {
+        ref.invalidate(transactionDetailProvider(transactionId));
+      }
+    }
+  },
+),
             // 삭제 버튼
             IconButton(
               icon: const Icon(Icons.delete),
